@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>starknet FRI</title>
+    <script
+      src="https://www.w3.org/Tools/respec/respec-w3c"
+      class="remove"
+      defer
+    ></script>
+     <!-- <script>
+      MathJax = {
+        tex: {
+          inlineMath: [ 
+            ['\\(', '\\)'], 
+          ],
+          displayMath: [ 
+            ['\\[', '\\]']
+          ],
+        }
+      };
+    </script> 
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script> -->
+
+    <!-- syntax highlighting -->
+    <script class='remove'>
+		async function loadRust() {
+			//this is the function you call in 'preProcess', to load the highlighter
+			const worker = await new Promise(resolve => {
+				require(["core/worker"], ({ worker }) => resolve(worker));
+			});
+			const action = "highlight-load-lang";
+			const langURL =
+				"https://gistcdn.githack.com/mimoo/a9e28fc565dddb369477e8bd34e6a1ae/raw/d8a7057fe9c7140f7ef5972b333716d9933fa29b/hljs-rust.js";
+			const propName = "hljsDefineRust"; // This funtion is defined in the highlighter being loaded
+			const lang = "language-rust"; // this is the class you use to identify the language
+			worker.postMessage({ action, langURL, propName, lang });
+			return new Promise(resolve => {
+				worker.addEventListener("message", function listener({ data }) {
+					const { action: responseAction, lang: responseLang } = data;
+					if (responseAction === action && responseLang === lang) {
+						worker.removeEventListener("message", listener);
+						resolve();
+					}
+				});
+			});
+		}
+
+        async function loadPython() {
+            const worker = await new Promise(resolve => {
+                require(["core/worker"], ({ worker }) => resolve(worker));
+            });
+            const action = "highlight-load-lang";
+            const langURL =
+                "https://gistcdn.githack.com/mimoo/fd9652b0c0d64bfc9f8cae69c72030b1/raw/2315322f87ba81c92c22477a05da6c4181f02df2/respec-py.js"; // URL to Python highlighter
+            const propName = "hljsDefinePython"; // Adjust this if needed
+            const lang = "language-py"; 
+            worker.postMessage({ action, langURL, propName, lang });
+            return new Promise(resolve => {
+                worker.addEventListener("message", function listener({ data }) {
+                    if (data.action === action && data.lang === lang) {
+                        worker.removeEventListener("message", listener);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+		var respecConfig = {
+			preProcess: [loadRust, loadPython],
+			specStatus: "base",
+			editors: [
+				// {% for editor in editors %}
+				{
+					name: "{{editor.0}}",
+					url: "{{editor.1}}",
+				},
+				// {% endfor %}
+			],
+			github: "zksecurity/RFCs",
+			shortName: "{{short_name}}",
+			//			format: "markdown",
+		};
+
+              // All config options at https://respec.org/docs/
+    //   var respecConfig = {
+    //     specStatus: "ED",
+    //     editors: [{ name: "David Wong", url: "https://www.zksecurity.xyz" }],
+    //     github: "zksecurity/RFCs",
+    //     shortName: "dahut",
+    //     xref: "web-platform",
+    //     group: "my-working-group",
+    //   };
+	</script>
+
+  </head>
+  <body>
+    <section id="abstract">
+      <p>et voila</p>
+    </section>
+    <section id="sotd">
+      <p>none</p>
+    </section>
+    <section>
+<h2>Overview of FRI</h2>
+<ul>
+<li>FRI is a ___</li>
+<li>FRI paper</li>
+<li>FRI can also be used as a PCS by ___</li>
+<li>
+<p>furthermore, multiple FRI proofs can be aggregated</p>
+</li>
+<li>
+<p>this specification targets the FRI used in the starknet integrity verifier (cairo verifier)</p>
+</li>
+</ul>
+<section>
+<h3>Vanilla FRI</h3>
+<pre><code class="language-py"># FRI
+# ---
+#
+# We follow the ethSTARK paper (https://eprint.iacr.org/2021/582) 
+#
+# 
+# Setup
+# =====
+#
+# We use the starknet field (https://docs.starknet.io/architecture-and-concepts/cryptography/p-value/)
+#
+
+starknet_prime = 2^251 + 17*2^192 + 1
+starknet_field = GF(starknet_prime)
+polynomial_ring.&lt;x&gt; = PolynomialRing(starknet_field)
+
+# find generator of the main group
+gen = starknet_field.multiplicative_generator()
+assert gen == 3
+assert starknet_field(gen)^(starknet_prime-1) == 1 # 3^(order-1) = 1
+
+# lagrange theorem's gives us the orders of all the multiplicative subgroups
+# which are the divisors of the main multiplicative group order (which, remember, is p - 1 as 0 is not part of it)
+# p - 1 = 2^192 * 5 * 7 * 98714381 * 166848103
+multiplicative_subgroup_order = starknet_field.order() - 1
+assert list(factor(multiplicative_subgroup_order)) == [(2, 192), (5, 1), (7, 1), (98714381, 1), (166848103, 1)]
+
+# find generator of subgroup of order 2^192
+# the starknet field has high 2-adicity, which is useful for FRI and FFTs
+# (https://www.cryptologie.net/article/559/whats-two-adicity)
+gen2 = gen^( (starknet_prime-1) / (2^192) )
+assert gen2^(2^192) == 1
+
+# find generator of a subgroup of order 2^i for i &lt;= 192
+def find_gen2(i):
+    assert i &gt;= 0
+    assert i &lt;= 192
+    return gen2^( 2^(192-i) )
+
+assert find_gen2(0)^1 == 1
+assert find_gen2(1)^2 == 1
+assert find_gen2(2)^4 == 1
+assert find_gen2(3)^8 == 1
+
+#
+# How are polynomials split in two in FRI?
+# ========================================
+#
+
+def split_poly(p, remove_square=True):
+    assert (p.degree()+1) % 2 == 0
+    g = (p + p(-x))/2 # &lt;---------- nice trick!
+    h = (p - p(-x))//(2 * x) # &lt;--- nice trick!
+    # at this point g and h are still around the same degree of p
+    # we need to replace x^2 by x for FRI to (as we want to halve the degrees!)
+    if remove_square:
+        g = g.parent(g.list()[::2]) # &lt;-- (using python's &lt;!--CODE_BLOCK_0--&gt; syntax)
+        h = h.parent(h.list()[::2])
+        assert g.degree() == h.degree() == p.degree() // 2
+        assert p(7) == g(7^2) + 7 * h(7^2)
+    else:
+        assert g.degree() == h.degree() == p.degree() - 1
+        assert p(7) == g(7) + 7 * h(7)
+    return g, h
+
+#
+# FRI reduction example
+# =====================
+# Here's the commit phase of FRI (without the actual commitments)
+#
+
+# p0(x) = 1 + 2x + 3x^2 + 4x^3 + 5x^4 + 6x^5 + 7x^6 + 8x^7
+# degree 7 means that we'll get ceil(log2(7)) = 3 rounds (and 4 layers)
+p0 = polynomial_ring([1, 2, 3, 4, 5, 6, 7, 8]) 
+
+# round 1: moves from degree 7 to degree 3
+h0, g0 = split_poly(p0)
+assert h0.degree() == g0.degree() == 3
+zeta0 = 3 # &lt;-------------------- the verifier would pick a random zeta
+p1 = h0 + zeta0 * g0 # &lt;--------- the prover would send a commitment of p1
+assert p0(zeta0) == p1(zeta0^2) # &lt;- sanity check
+
+# round 2: reduces degree 3 to degree 1
+h1, g1 = split_poly(p1)
+assert g1.degree() == h1.degree() == 1
+zeta1 = 12 # &lt;------------ the verifier would pick a random zeta
+p2 = h1 + zeta1 * g1 # &lt;-- the prover would send a commitment of p2
+assert p1(zeta1) == p2(zeta1^2)
+h2, g2 = split_poly(p2)
+assert h2.degree() == g2.degree() == 0
+
+# round 3: reduces degree 1 to degree 0
+zeta2 = 3920 # &lt;---------- the verifier would pick a random zeta
+p3 = h2 + zeta2 * g2 # &lt;-- the prover could send p3 in the clear
+assert p2(zeta2) == p3
+assert p3.degree() == 0
+
+#
+# FRI query examples
+# ==================
+# Let's look at what the verifier would have to check at the end.
+#
+
+# first round/reduction
+v = 392 # &lt;--------------------------------------- fake sample a point
+p0_v, p0_v_neg = p0(v), p0(-v) # &lt;--------------- the 2 queries we need
+g0_square = (p0_v + p0_v_neg)/2
+h0_square = (p0_v - p0_v_neg)/(2 * v)
+assert p0_v == g0_square + v * h0_square # &lt;------ sanity check
+p1_v = p1(v^2) # &lt;-------------------------------- query on the next layer
+assert g0_square + zeta0 * h0_square == p1_v # &lt;--- the correctness check
+
+# second round/reduction
+p1_v_neg = p1(-v^2) # &lt;-- the 1 query we need
+g1_square = (p1_v + p1_v_neg)/2 # g1(v^4)
+h1_square = (p1_v - p1_v_neg)/(2 * v^2) # h1(v^4)
+assert p1_v == g1_square + v^2 * h1_square # p1(v^2) = g1(v^4) + v^2 * h1(v^4)
+p2_v = p2(v^4) # &lt;-- query the next layer
+assert p2(v^4) == g1_square + zeta1 * h1_square # p2(v^4) = g1(v^4) + zeta1 * h1(v^4)
+
+# third round/reduction
+p2_v_neg = p2(-v^4) # &lt;-- the 1 query we need
+g2_square = (p2_v + p2_v_neg)/2 # g2(v^8)
+h2_square = (p2_v - p2_v_neg)/(2 * v^4) # h2(v^8)
+assert p2_v == g2_square + v^4 * h2_square # p2(v^4) = g2(v^8) + v^4 * h2(v^8)
+assert p3 == g2_square + zeta2 * h2_square # we already received p3 at the end of the protocol
+
+
+#
+# skipping FRI layers optimization
+# ================================
+# section 3.11.1 &quot;Skipping FRI Layers&quot; of the ethSTARK paper describes an optimization which skips some of the layers/rounds.
+# unfortunately they don't describe much on how to achieve this, 
+# but &quot;A summary on the FRI low degree test&quot; (https://eprint.iacr.org/2022/1216.pdf) has more detail.
+#
+# The intuition is the following: if we removed the first round commitment (to the polynomial p1), 
+# then the verifier would not be able to:
+#
+# - query p1(v^2) to verify that layer
+# - query p1(-v^2) to continue the protocol and get g1, h1
+#
+# The first point is fine, as there's nothing to check the correctness of.
+# To address the second point, we can use the same technique we use to compute p1(v^2).
+# Remember, we needed p0(v) and p0(-v) to compute g0(v^2) and h0(v^2).
+# But to compute g0(-v^2) and h0(-v^2), we need the quadratic residues of -v^2,
+# that is w, such that w^2 = -v^2,
+# so that we can compute g0(-v^2) and h0(-v^2) from p0(w) and p0(-w).
+#
+# We can easily compute them by using tau, the generator of the subgroup of order 4
+
+tau = find_gen2(2)
+assert tau.multiplicative_order() == 4
+
+# so now we can compute the two roots of -v^2 as
+assert (tau * v)^2 == -v^2
+assert (tau^3 * v)^2 == -v^2
+
+# and when we query p2(v^4) we can verify that it is correct
+# if given the evaluations of p0 at v, -v, tau*v, tau^3*v
+
+p0_tau_v = p0(tau * v)
+p0_tau3_v = p0(tau^3 * v)
+p1_v_square = (p0_v + p0_v_neg)/2 + zeta0 * (p0_v - p0_v_neg)/(2 * v)
+p1_neg_v_square = (p0_tau_v + p0_tau3_v)/2 + zeta0 * (p0_tau_v - p0_tau3_v)/(2 * tau * v)
+assert p2(v^4) == (p1_v_square + p1_neg_v_square)/2 + zeta1 * (p1_v_square - p1_neg_v_square)/(2 * v^2)
+
+# note that there is no point producing a new challenge zeta1 as nothing more was observed from the verifier's point of view during the skipped round.
+# as such, FRI implementations will usually use zeta0^2 as &quot;folding factor&quot;
+# (and so on if more folding occurs)
+
+# 
+# Last layer optimization
+# =======================
+# section 3.11.2 &quot;FRI Last Layer&quot; of the ethSTARK paper describes an optimization which stops at an earlier round. 
+# We show this here by removing the last round.
+#
+
+# at the end of the second round we imagine that the verifier receives the coefficients of p2 (h2 and g2) directly
+p2_v = h2 + v^4 * g2 # they can then compute p2(v^4) directly
+assert g1_square + zeta1 * h1_square == p2_v # and then check correctness
+
+#
+# How would commitments work?
+# ===========================
+#
+
+# if we evaluate the polynomial on a set of size 8 (so the blowup factor is 1)
+g = find_gen2(log(8,2))
+
+# we use a coset (e.g. 2 * g^i) to evaluate the polynomial at the different points
+# (as otherwise we can't compute some of the rational polynomials)
+# (the DEEP polynomial of the ethSTARK protocol might divide by zero)
+coset = [2 * g^i for i in range(8)] 
+poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statement
+</code></pre>
+<h3>Differences with vanilla FRI</h3>
+<p>All of the implementations above are implemented.
+In addition, there's a slight difference in how the prover folds each layer. 
+We explain this here.</p>
+<p>in the "vanilla FRI" the verifier gets evaluations of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow></math> and computes the next layer's evaluation at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>v</mi><mn>2</mn></msup></mrow></math> as</p>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mfrac><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>v</mi></mrow></mfrac><mi>\tag</mi><mrow><mn>1</mn></mrow></mrow></mrow></math>
+
+<p>which is equivalent to</p>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>g</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math>
+
+<p>where </p>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>g</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math>
+
+<hr />
+<p>The implemented FRI uses a different formula to fold a layer's polynomial (assuming no skipped layer):</p>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo>&#x0003D;</mo><mn>2</mn><mo stretchy="false">&#x00028;</mo><msub><mi>g</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mi>&#x000B7;</mi><msup><mn>3</mn><mrow><mo>&#x02212;</mo><mn>1</mn></mrow></msup><mi>&#x000B7;</mi><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo stretchy="false">&#x00029;</mo></mrow></math>
+
+<p>This shouldn't impact the protocol as we are just scaling with constants, but the verifier has to modify their queries slightly. They need to check that</p>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mi>&#x000B7;</mi><mi>g</mi><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mi>v</mi></mrow></mfrac><mi>\tag</mi><mrow><mn>1</mn></mrow></mrow></math>
+
+<p>I'm not sure exactly why they do this, it doesn't seem to me like there is any significant performance improvement at first sight.</p>
+</section>
+<h2>Constants</h2>
+<ul>
+<li>MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15</li>
+<li>MAX_FRI_LAYERS = 15</li>
+<li>MAX_FRI_STEP = 4</li>
+</ul>
+<section>
+<h3>Step generators</h3>
+<p>These are used to skip layers during the FRI protocol. Only 1, 2, 3, or 4 layers can be skipped, each associated to one of the constant below (except for skipping a single layer which is trivial):</p>
+<pre><code class="language-rust">// to skip 4 layers
+const OMEGA_16: felt252 = 0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75;
+// to skip 3 layers
+const OMEGA_8: felt252 = 0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df6f4bc9ca34;
+// to skip 2 layers
+const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e;
+</code></pre>
+</section>
+<h2>Configuration</h2>
+<pre><code class="language-rust">struct VectorCommitmentConfig {
+    height: felt252,
+    n_verifier_friendly_commitment_layers: felt252,
+}
+
+struct TableCommitmentConfig {
+    n_columns: felt252,
+    vector: VectorCommitmentConfig,
+}
+
+struct FriConfig {
+    // Log2 of the size of the input layer to FRI.
+    log_input_size: felt252,
+    // Number of layers in the FRI. Inner + last layer.
+    n_layers: felt252,
+    // Array of size n_layers - 1, each entry is a configuration of a table commitment for the
+    // corresponding inner layer.
+    inner_layers: Span&lt;TableCommitmentConfig&gt;,
+    // Array of size n_layers, each entry represents the FRI step size,
+    // i.e. the number of FRI-foldings between layer i and i+1.
+    fri_step_sizes: Span&lt;felt252&gt;,
+    log_last_layer_degree_bound: felt252,
+}
+</code></pre>
+<p>validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):</p>
+<ul>
+<li>the number of layers <code>n_layers</code> must be within the range <code>[2, MAX_FRI_LAYERS]</code> (see constants)</li>
+<li>the <code>log_last_layer_degree_bound</code> must be less or equal to <code>MAX_LAST_LAYER_LOG_DEGREE_BOUND</code></li>
+<li>the first<code>fri_step_sizes[0]</code> must be 0</li>
+<li>for every <code>fri_step_sizes[i]</code> check:</li>
+<li>that the step <code>fri_step_sizes[i]</code> is within the range <code>[1, MAX_FRI_STEP]</code></li>
+<li>that the previous layer table commitment configuration <code>inner_Layers[i-1]</code> has<ul>
+<li>a number of columns <code>n_columns = 2^fri_step</code> (TODO: why?)</li>
+<li>a valid configuration, which can be verified using the expected log input size and the <code>n_verifier_friendly_commitment_layers</code></li>
+<li>expected log input size should be the input size minus all the step sizes so far</li>
+</ul>
+</li>
+<li>the <code>log_expected_input_degree + log_n_cosets == log_input_size</code></li>
+<li>TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)</li>
+<li>where <code>log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound</code></li>
+</ul>
+<p>note: I think each proof can basically choose these parameters to trade off between proof size / cairo steps / prover space&amp;time.</p>
+<h2>Commitments</h2>
+<ul>
+<li>Merkle tree commitments</li>
+<li>montgomery form?</li>
+</ul>
+<pre><code class="language-rust">#[derive(Drop, Copy, Serde, starknet::Store)]
+struct VerifierSettings {
+    cairo_version: CairoVersion,
+    hasher_bit_length: HasherBitLength,
+    stone_version: StoneVersion,
+}
+</code></pre>
+<pre><code class="language-py">def hash_blake_or_poseidon(x, y, is_verifier_friendly, settings):
+    if is_verifier_friendly:
+        return hades_permutation(x, y, 2)
+    return hash_truncated([x, y], settings)
+
+# queue contains the path to take from leaf to root (with values)
+# authentications contain the sibling nodes needed
+# but the very first leaf should be the given element!
+# TODO: where do they check that?
+def compute_root_from_queries(queue, start, n_verifier_friendly_layers, authentications, auth_start, settings):
+    curent = queue[start]
+
+    if current.index == 1: # root
+        assert current.depth == 0
+        assert start + 1 == len(queue) # TODO: why? I thought the queue contained MANY queries?
+        assert auth_start == len(authentications)
+        return current.value
+
+    parent, bit = div_rem(current.index, 2) # current.index = 2 * parent + bit
+    is_verifier_friendly = n_verifier_friendly_layers &gt;= current.depth
+
+    hash_ = None
+    if bit == 1: # right node
+        assert auth_start != len(authentications)
+        hash_ = hash_blake_or_poseidon(authentications[auth_start], current.value, is_verifier_friendly, settings)
+    else: # left node
+        # edge-case (TODO: why would the right node be next in the queue?): 
+        if start + 1 != len(queue) and current.index + 1 == queue[start+1].index:
+                hash_ = hash_blake_or_poseidon(current.value, queue[start+1], is_verifier_friendly, settings)
+                queue.append(VectorQueryWithDepth(index=parent, value=hash_, depth=current.depth-1))
+                return compute_root_from_queries(queue, start+2, n_verifier_friendly_layers, authentications, auth_start, settings)
+        assert auth_start != len(authentications)
+        hash_ = hash_blake_or_poseidon(current.value, authentications[auth_start], is_verifier_friendly, settings)
+
+    # add our computed node in the above layer in the queue, then recurse
+    queue.append(VectorQueryWithDepth(index=parent,value=hash_,depth=current.depth-1))
+    return compute_root_from_queries(queue, start+1, n_verifier_friendly_layers, authentications, auth_start+1, settings)
+
+def shift_queries(queries, shift, height):
+    shifted_queries = []
+    for query in queries:
+        shifted_queries.append(VectorQueryDepth(index=query.index + shift, value=query.value, depth=height))
+    return shifted_queries
+
+
+def generate_vector_queries(queries, values, n_columns, is_verifier_friendly, settings):
+    vector_queries = []
+    for i in range(len(queries)):
+        hash_ = None
+        if n_columns == 1:
+            hash_ = values[i]
+        else: # if there are multiple columns, their hashes are hashed in a single hash
+            to_hash = values[i * n_columns: (i + 1) * n_columns]
+            if is_verifier_friendly:
+                hash_ = poseidon_hash_span(to_hash)
+            else:
+                hash_ = hash_truncated(to_hash, settings)
+        vector_queries.append(VectorQuery(index=queries[i], value=hash_))
+    return vector_queries
+
+def vector_commitment_decommit(commitment, queries, witness, settings):
+    shift = pow(2, commitment.config.height) # 2^height
+
+    # TODO: I think because we produce the same query for each coset/column?
+    # if we have multiple columns, we need this?
+    shifted_queries = shift_queries(queries, shift, commitment.config.height)
+
+    # compute root from queries
+    expected_commitment = compute_root_from_queries(shifted_queries, 0, commitment.config.n_verifier_friendly_commitment_layers, witness.authentications, 0, settings)
+
+    # check that it matches the known root
+    assert expected_commitment == commitment.commitment_hash
+
+
+def table_decommit(commitment, queries, decommitment, witness, settings):
+    n_queries = len(queries)
+
+    # a verifier-friendly hash function is used for the bottom layers
+    # (the other layers' hash functions are determined in the vector_commitment stuff)
+    n_verifier_friendly_layers = commitment.vector_commitment.config.n_verifier_friendly_commitment_layers
+    bottom_layer_depth = commitment.vector_commitment.config.height + 1 # fix height by one due to missing layer0
+    is_bottom_layer_verifier_friendly = n_verifier_friendly_layers &gt;= bottom_layer_depth
+
+    assert commitment.config.n_columns &gt;= 1
+    assert len(decommitment.values) == n_queries * n_columns # TODO: what is a column here?
+
+    # TODO: ?
+    montgomery_values = to_montgomery(decommitment.values)
+
+    #
+    vector_queries = generate_vector_queries(queries, montgomery_values, commitment.config.n_columns, is_bottom_layer_verifier_friendly, settings)
+    vector_commitment_decommit(commitment.vector_commitment, vector_queries, witness.vector, settings)
+</code></pre>
+<section>
+<h3>Table commitments</h3>
+<p>A table commitment in this context is a vector commitment where leaves are potentially hashes of several values (tables of multiple columns and a single row).</p>
+<h3>Vector commitments</h3>
+<p>A vector commitment. TODO: diagram.</p>
+<h3>Note on commitment multiple evaluations under the same leaf</h3>
+<ul>
+<li>the following array contains all the 16-th roots of unity, handily ordered</li>
+<li>that is, the first represents the subgroup of order 1, the two first values represent the subgroup of order 2, the four first values represent the subgroup of order 4, and so on</li>
+<li>furthermore, these values are chosen in relation to how evaluations are ordered in a leaf of a commitment</li>
+<li>each value tells you exactly what to multiply to 1/(something*x) to obtain 1/(x)</li>
+<li>TODO: but wait, how is inv_x obtained... that doesn't make sense no?</li>
+<li>it seems like the following values are used to "correct" the x value depending on where x pointed at</li>
+</ul>
+<pre><code>array![
+    0x1,
+    0x800000000000011000000000000000000000000000000000000000000000000,
+    0x625023929a2995b533120664329f8c7c5268e56ac8320da2a616626f41337e3,
+    0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e,
+    0x63365fe0de874d9c90adb1e2f9c676e98c62155e4412e873ada5e1dee6feebb,
+    0x1cc9a01f2178b3736f524e1d06398916739deaa1bbed178c525a1e211901146,
+    0x3b912c31d6a226e4a15988c6b7ec1915474043aac68553537192090b43635cd,
+    0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df6f4bc9ca34,
+    0x5ec467b88826aba4537602d514425f3b0bdf467bbf302458337c45f6021e539,
+    0x213b984777d9556bac89fd2aebbda0c4f420b98440cfdba7cc83ba09fde1ac8,
+    0x5ce3fa16c35cb4da537753675ca3276ead24059dddea2ca47c36587e5a538d1,
+    0x231c05e93ca34c35ac88ac98a35cd89152dbfa622215d35b83c9a781a5ac730,
+    0x00b54759e8c46e1258dc80f091e6f3be387888015452ce5f0ca09ce9e571f52,
+    0x7f4ab8a6173b92fda7237f0f6e190c41c78777feabad31a0f35f63161a8e0af,
+    0x23c12f3909539339b83645c1b8de3e14ebfee15c2e8b3ad2867e3a47eba558c,
+    0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75,
+]
+</code></pre>
+<ul>
+<li>that is, if x pointed at the beginning of a coset, then we don't need to correct it (the first evaluation committed to contains x)</li>
+<li>but if x pointed at the first value, it actually points to an evaluation of -x, so we need to correct the -x we have by multiplying with -1 again so that we get x (or -1/x becomes 1/x, same thing)</li>
+<li>if x points to the 2 value, then </li>
+</ul>
+</section>
+<h2>Commit phase</h2>
+<p>This should basically just absorb the commitments of every layer sent by the prover (potentially skipping layers)</p>
+<pre><code class="language-rust">#[derive(Drop, Copy, PartialEq, Serde)]
+struct TableCommitmentConfig {
+    n_columns: felt252, // TODO: gets divided by 2 at every step in FRI?
+    vector: VectorCommitmentConfig,
+}
+struct VectorCommitmentConfig {
+    height: felt252, // TODO: ?
+    n_verifier_friendly_commitment_layers: felt252, // TODO: ?
+}
+</code></pre>
+<pre><code class="language-py"># TODO: step_sizes is ignored! Shouldn't we check that the layer cfg are properly following the step sizes?
+def fri_commit_rounds(channel, n_layers, configs, unsent_commitments, step_sizes):
+    commitments = []
+    eval_points = []
+    # TODO: we don't check that n_layers matches the length of these arrays!
+    for unsent_commitment, cfg in zip(unsent_commitments, configs):
+        commit = table_commit(channel, unsent_commitment, cfg) # absorbs the commitment # TODO: where is each cfg checked?
+        commitments.append(commit)
+        eval_points.append(channel.random_felt_to_prover())
+
+def fri_commit(channel, unsent_commitment, cfg):
+    assert cfg.fri_step_sizes[0] == 0
+
+    # why n_layers - 1 ?
+    commitments, eval_points = fri_commit_rounds(channel, cfg.n_layers-1, cfg.inner_layers, unsent_commitment.inner_layers, cfg.fri_step_sizes)
+
+    # absorb last layer
+    channel.read_felt_vector_from_prover(unsent_commitment.last_layer_coefficients)
+
+    # check that the last layer matches the config
+    assert pow(2, cfg.log_last_layer_degree_bound) == len(unsent_commitment.last_layer_coefficients)
+
+    return FriCommitment(cfg, inner_layers=commitments, eval_points, last_layer_coefficients=unsent_commitment.last_layer_coefficients)
+</code></pre>
+<p>it seems like only the first round has a step size of 0, every other round has a step in <code>[1, MAX_FRI_STEP=4]</code></p>
+<h2>Queries</h2>
+<pre><code class="language-rust">struct FriLayerComputationParams {
+    coset_size: felt252,
+    fri_group: Span&lt;felt252&gt;,
+    eval_point: felt252,
+}
+
+#[derive(Drop, Copy, PartialEq, Serde)]
+struct FriLayerQuery {
+    index: felt252,
+    y_value: felt252, // the evaluation on the last layer
+    x_inv_value: felt252, // weirdly, we evaluate the last layer with 1/x^inv
+}
+</code></pre>
+<pre><code class="language-py">FIELD_GENERATOR = 3
+FIELD_GENERATOR_INVERSE = 1206167596222043737899107594365023368541035738443865566657697352045290673494 # 3^-1
+
+def generate_queries(channel, n_samples=cfg.n_queries, query_upper_bound=stark_domains.eval_domain_size):
+    # sample
+    samples = []
+    assert query_upper_bound != 0
+    for _ in range(n_samples):
+        res = channel.random_felt_to_prover()
+        low128 = res.low
+        let _, sample = div_rem(low128, query_upper_bound) # low128 % eval_domain_size ?
+        samples.append(sample)
+
+    # sort and remove duplicates
+    res = []
+    sorted = merge_sort(samples)
+    for i in range(1, len(sorted)):
+        curr = sorted[i]
+        if curr != prev:
+            res.append(curr)
+            prev = curr
+
+    return res
+
+def queries_to_points(queries, stark_domains):
+    points = []
+    assert stark_domains.log_eval_domain_size &lt;= 64
+    shift = pow(2, 64 - stark_domains.log_eval_domain_size) # shift is just 2^(64-i) ? how does it change through layers?
+    for query in queries:
+        idx = query * shift
+        point = FIELD_GENERATOR * pow(stark_domains.eval_generator, idx.bit_reverse()) # TODO: ?
+        points.append(point)
+
+def gather_first_layer_queries(queries, evaluations, x_values):
+    fri_queries = []
+    for query, evaluation, x_value in zip(queries, evaluations, x_values):
+        shifted_x_value = x_value * FIELD_GENERATOR_INVERSE # x / g (TODO: why?)
+        fri_queries.append(FriLayerQuery(index=query.index, y_value=evaluation, x_inv_value=1/shifted_x_value))
+    return fri_queries
+
+def compute_coset_elements(queries, sibling_witness, coset_size, coset_start_index, fri_group):
+    coset_elements = []
+    coset_x_inv = 0
+    for i in range(coset_size):
+        if len(queries) &gt; 0 and queries[0].index == coset_start_index + i:
+            query = queries.remove(0)
+            coset_elements.append(query.y_value)
+            coset_x_inv = query.x_inv_value * fri_group[i] # TODO: are elements of the FRI group used to create coset?
+        else:
+            coset_elements.append(sibling_witness.remove(0))
+
+    return coset_elements, coset_x_inv
+
+
+# this seems to group queries by coset
+def compute_next_layer(queries, sibling_witness, params):
+    verify_indices = [] # coset used (its start index) for the query
+    verify_y_values = [] # all the evaluations queried in each coset
+    next_queries = [] # TODO: ?
+    while len(queries) != 0:
+        # defer verification of the query
+        coset_index = queries[0].index // params.coset_size
+        verify_indices.append(coset_index) # TODO: for merkle tree?
+
+        # compute coset element (TODO: what?)
+        coset_start_idx = coset_index * params.coset_size
+        coset_elements, coset_x_inv = compute_coset_elements(query, sibling_witness, params.coset_size, coset_start_idx, params.fri_group)
+
+        # at least one query was consumed (TODO: what?)
+        assert len(coset_elements) &gt; 0
+
+        # defer verification of the y values (TODO: what?)
+        verify_y_values.extend(coset_elements)
+
+        # TODO: what?
+        fri_formula_res = fri_formula(coset_elements_span, params.eval_point, coset_x_inv, params.coset_size)
+
+        # TODO: what?
+        next_x_inv = coset_x_inv ** params.coset_size
+        next_queries.append(FriLayerQuery(index=coset_index, y_value=fri_formula_res, x_inv_value=next_x_inv))
+
+    return next_queries, verify_indices, verify_y_values
+
+def verify_last_layer(queries, poly):
+        for query in queries:
+            assert poly.eval(1/query.x_inv_value) == query.y_value
+
+def get_fri_group():
+    return [
+        0x1,
+        0x800000000000011000000000000000000000000000000000000000000000000,
+        0x625023929a2995b533120664329f8c7c5268e56ac8320da2a616626f41337e3,
+        0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e,
+        0x63365fe0de874d9c90adb1e2f9c676e98c62155e4412e873ada5e1dee6feebb,
+        0x1cc9a01f2178b3736f524e1d06398916739deaa1bbed178c525a1e211901146,
+        0x3b912c31d6a226e4a15988c6b7ec1915474043aac68553537192090b43635cd,
+        0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df6f4bc9ca34,
+        0x5ec467b88826aba4537602d514425f3b0bdf467bbf302458337c45f6021e539,
+        0x213b984777d9556bac89fd2aebbda0c4f420b98440cfdba7cc83ba09fde1ac8,
+        0x5ce3fa16c35cb4da537753675ca3276ead24059dddea2ca47c36587e5a538d1,
+        0x231c05e93ca34c35ac88ac98a35cd89152dbfa622215d35b83c9a781a5ac730,
+        0x00b54759e8c46e1258dc80f091e6f3be387888015452ce5f0ca09ce9e571f52,
+        0x7f4ab8a6173b92fda7237f0f6e190c41c78777feabad31a0f35f63161a8e0af,
+        0x23c12f3909539339b83645c1b8de3e14ebfee15c2e8b3ad2867e3a47eba558c,
+        0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75,
+    ]
+
+def fri_verify_layer_step(queries, step_size, eval_point, commitment, layer_witness, settings):
+    fri_group = get_fri_group()
+    coset_size = 2**step_size # TODO: woot?
+    params = FriLayerComputationParams(coset_size, fri_group, eval_point)
+
+    # compute the next layer
+    next_queries, verify_indices, verify_y_values = compute_next_layer(queries, layer_witness.leaves, params)
+
+    # verify stuff(TODO: what?)
+    table_decommit(commitment, verify_indices, TableDecommitment(values=verify_y_values), layer_witness.table_witness, settings)
+
+    return next_queries
+</code></pre>
+<section>
+<h3>How queries are generated</h3>
+<ul>
+<li>in generate_queries():</li>
+<li>each query is a 128-bit random value obtained by truncating the value sampled from F-S    </li>
+<li>it is then reduced to <code>log_eval_domain_size</code> bits (which is enforced to be strictely less than 64 bits)</li>
+<li>in queries_to_points():</li>
+<li>it is then shifted to the left to make it a 64-bit value: <code>a = query * 2^(64 - stark_domains.log_eval_domain_size</code></li>
+<li>it is then used to generate a point in the coset <code>3 * stark_domains.eval_generator^(a.bit_reverse())</code> (TODO: not sure why they bit reverse here, I think it's not necessary?)</li>
+<li>TODO: but how come this can point to something that can be corrected with the fri_group... where does it get inverted also?</li>
+</ul>
+<p>then:</p>
+<ul>
+<li>fri_first_layer::gather_first_layer_queries(queries, evaluations, x_values)</li>
+<li>called with queries, decommitment.values, decommitment.points<ul>
+<li>where decommitment.values = oods_poly_evals and points is the return value of <code>query_to_points</code> above</li>
+</ul>
+</li>
+<li>FriLayerQuery with <code>index=queries[i], y_value=evaluations[i], x_inv_value = 3 / (x_values[i])</code></li>
+<li>so this cancels the earlier <code>3 *</code> that we had, and removes us from the coset?</li>
+</ul>
+<p>TODO: how are x_values related to queries... wait WTF. Can I put the same x_values in EVERY query leaf?</p>
+<p>then these are returned:</p>
+<pre><code class="language-rust">(
+    FriVerificationStateConstant {
+        n_layers: (commitment.config.n_layers - 1).try_into().unwrap(), // -1 due to the first layer missing
+        commitment: commitment.inner_layers, // commitment of each poly (Except skipped layers)
+        eval_points: commitment.eval_points, // same for challenges
+        step_sizes: commitment
+            .config
+            .fri_step_sizes // step_sizes!
+            .slice(1, commitment.config.fri_step_sizes.len() - 1),
+        last_layer_coefficients_hash: hash_array(commitment.last_layer_coefficients), // hash of the last layer instead of commitment
+    },
+    FriVerificationStateVariable { 
+        iter: 0, // iter 0 &lt;-- used to know where to point to in the state above
+        queries: fri_queries.span(),  // the fri queries calculated
+    }
+)
+</code></pre>
+<p>in subsequent queries, these two functions are called:</p>
+<pre><code class="language-py"># struct FriLayerQuery {
+#    index: felt252,
+#    y_value: felt252,
+#    x_inv_value: felt252,
+#}
+
+# next_queries contains
+# - the next (x, y_value) on the layer to double check (i.e. next_layer(x) = y)
+# - it also gives coset_index as help on where to check (in the merkle tree?)
+next_queries, verify_indices, verify_y_values = compute_next_layer(queries, layer_witness.leaves, params)
+
+# why don't we use layer_witness.leaves??? -&gt; they are contained in verify_y_values
+# so this verifies that the evaluations we used are contained in the current layer's commitment, under the indices
+table_decommit(commitment, verify_indices, verify_y_values, layer_witness.table_witness, settings)
+retrun next_queries
+</code></pre>
+<h3>Queries verification</h3>
+<ul>
+<li>Queries between layers verify that the next layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mi>j</mi></mrow></msub></mrow></math> is computed correctly based on the currently layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub></mrow></math></li>
+<li>The next layer is either the direct next layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub></mrow></math> or a layer further away if the configuration allows layers to be skipped</li>
+<li>Specifically, each reduction is allowed to skip 1, 2, or 3 layers</li>
+</ul>
+<p>no skipping:</p>
+<ul>
+<li>given a layer evaluations at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x000B1;</mi><mi>v</mi></mrow></math>, a query without skipping layers work this way:</li>
+<li>we can compute the next layer's <em>expected</em> evaluation at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>v</mi><mn>2</mn></msup></mrow></math> by computing <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li>we can then ask the prover to open the next layer's polynomial at that point and verify that it matches</li>
+</ul>
+<p>1 skipping with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>4</mn></msub></mrow></math> the generator of the 4-th roots of unity (such that <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mn>4</mn><mn>2</mn></msubsup><mo>&#x0003D;</mo><mo>&#x02212;</mo><mn>1</mn></mrow></math>):</p>
+<ul>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>&#x000B7;</mi><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>2</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msup><mi>v</mi><mn>2</mn></msup></mrow></mfrac></mrow></math></li>
+</ul>
+<p>as you can see, this requires 4 evaluations of p_{i} at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi></mrow></math>.</p>
+<p>2 skippings with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>8</mn></msub></mrow></math> the generator of the 8-th roots of unity (such that <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>2</mn></msubsup><mo>&#x0003D;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>4</mn></msubsup><mo>&#x0003D;</mo><mo>&#x02212;</mo><mn>1</mn></mrow></math>):</p>
+<ul>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>&#x000B7;</mi><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>&#x000B7;</mi><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>2</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msup><mi>v</mi><mn>2</mn></msup></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>2</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>4</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msup><mi>v</mi><mn>4</mn></msup></mrow></mfrac></mrow></math></li>
+</ul>
+<p>as you can see, this requires 8 evaluations of p_{i} at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi></mrow></math>.</p>
+<p>3 skippings with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mrow><mn>16</mn></mrow></msub></mrow></math> the generator of the 16-th roots of unity (such that <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mrow><mn>16</mn></mrow><mn>2</mn></msubsup><mo>&#x0003D;</mo><msub><mi>&#x003C9;</mi><mrow><mn>8</mn></mrow></msub></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mrow><mn>16</mn></mrow><mn>4</mn></msubsup><mo>&#x0003D;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub></mrow></math>, and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mrow><mn>16</mn></mrow><mn>8</mn></msubsup><mo>&#x0003D;</mo><mo>&#x02212;</mo><mn>1</mn></mrow></math>):</p>
+<ul>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>&#x000B7;</mi><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>&#x000B7;</mi><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>7</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>7</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mi>i</mi></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>7</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>7</mn></msup><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>7</mn></msup><mi>v</mi></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>2</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msup><mi>v</mi><mn>2</mn></msup></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>2</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>2</mn></msup></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>2</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>&#x000B7;</mi><msup><mi>v</mi><mn>2</mn></msup></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>2</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><msup><mi>v</mi><mn>2</mn></msup></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>4</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msup><mi>v</mi><mn>4</mn></msup></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>4</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>2</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>4</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mn>4</mn></msub><msup><mi>v</mi><mn>4</mn></msup></mrow></mfrac></mrow></math></li>
+<li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>4</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>1</mn></msup><mn>6</mn><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>8</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msup><mi>v</mi><mn>8</mn></msup></mrow></mfrac></mrow></math></li>
+</ul>
+<p>as you can see, this requires 16 evaluations of p_{i} at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>7</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>7</mn></msub><mi>v</mi></mrow></math>.</p>
+<blockquote>
+<p>Note: in the implementation, the division by 2 does not happen, thus the other side of the checked identity must be multiplied by 2 (TODO: where does this happen?)</p>
+</blockquote>
+</section>
+<h2>Flow</h2>
+<p>throughout the flow it seems like a context object is passed (and mutated?):</p>
+<pre><code class="language-rust">#[derive(Drop, Serde)]
+struct FriVerificationStateConstant {
+    n_layers: u32,
+    commitment: Span&lt;TableCommitment&gt;,
+    eval_points: Span&lt;felt252&gt;,
+    step_sizes: Span&lt;felt252&gt;,
+    last_layer_coefficients_hash: felt252,
+}
+</code></pre>
+<p>the three main functions are in <code>stark.cairo</code> and can be called successively, or called in a single call using the <code>verify()</code> function:</p>
+<ul>
+<li>stark.cairo</li>
+<li>
+<p>verify_initial -&gt; this should return the initial set of queries</p>
+<ul>
+<li>...</li>
+<li>stark_commit.cairo:stark_commit</li>
+<li>...</li>
+<li>fri_commit</li>
+<li>proof_of_work_commit</li>
+<li>generate_queries</li>
+<li>stark_verify.cairo:stark_verify</li>
+<li>...</li>
+<li>fri.cairo:fri_verify_initial<ul>
+<li>gather_first_layer_queries</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>verify_step -&gt; this should tkae a set of queries and return another set of queries</p>
+<ul>
+<li>fri_verify_step</li>
+<li>fri_verify_layer_step<ul>
+<li>compute_next_layer</li>
+<li>table_decommit</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>verify_final(stateConstant, stateVariable, last_layer_coefficients)</p>
+<ul>
+<li>fri.cairo:fri_verify_final</li>
+<li>verify_last_layer</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>WARNING: these functions only make sense when they are called sequentially with the right inputs! as such they should be used in a wrapper that keeps track of what the statement being proven is and what set of query it is associated to (otherwise you could just make up your queries)</p>
+</blockquote>
+<p>initial (contained in verify_initial in the stark implementation):</p>
+<ol>
+<li>start_commitment = stark_commit()</li>
+<li>this essentially contains the stark protocol (the start) and then...</li>
+<li>sample the <code>oods_alpha</code>, also called <code>interaction_after_oods</code> from the channel</li>
+<li>fri_commitment = fri_commit(channel, unsent_commitment.fri, cfg.fri) (TODO: where is cfg.fri validated?)<ol>
+<li>assert cfg.fri_step_sizes[0] == 0</li>
+<li>commitments, eval_points = fri_commit_rounds()<ol>
+<li>?</li>
+</ol>
+</li>
+<li>absorb the <code>unsent_commitment.last_layer_coefficients</code> in the channel</li>
+<li>check that <code>cfg.log_last_layer_degree_bound</code> is correctly set: <code>pow(2, cfg.log_last_layer_degree_bound) == len(coefficients)</code></li>
+</ol>
+</li>
+<li>proof_of_work_commit(channel, unsent_commitment.proof_of_work, cfg.proof_of_work)</li>
+<li>last_layer_coefficients = stark_commitment.fri.last_layer_coefficients</li>
+<li>queries = generate_queries(channel, cfg.n_queries, stark_domains.eval_domain_size)</li>
+<li>con, var = stark_verify()</li>
+<li>return con, var, last_layer_coefficients</li>
+</ol>
+<p>step:</p>
+<ol>
+<li>?</li>
+</ol>
+<p>final:</p>
+<ol>
+<li>?</li>
+</ol>
+</section>
+</section>
+  </body>
+</html>
+
