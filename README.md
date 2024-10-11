@@ -8,5 +8,7 @@ You can browse the RFCs in the [RFCs](rfcs) directory.
 
 ```
 pip install -r requirements.txt
-python md2respec.py starknet/fri.md  > starknet/fri.html
+python md2respec.py source/starknet/fri.md  > rfcs/starknet/fri.html
 ```
+
+TODO: a Makefile that recursively build every RFC in the source/ directory
