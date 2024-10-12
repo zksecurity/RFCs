@@ -279,10 +279,20 @@ Note that these changes can easily be generalized to work when layers are skippe
 
 ## Dependencies
 
+### Algorithms
+
 * circuit-friendly hash. Poseidon.
 * default hash function. Keccak.
 
 TODO: why the alternate use of hash functions?
+
+### Evaluation of the first FRI layer
+
+As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial $p_0$. This is abstracted in this specification as the function `eval_oods_polynomial` which acts as an oracle from FRI's perspective.
+
+TODO: not a very satisfying explanation
+
+Note that this function is not fixed here, as the polynomial being "tested" could be computed in different ways. See the [Starknet STARK verifier specification](stark.md) for a concrete example (and for an explanation of why the function is named this way).
 
 ## Constants
 
@@ -298,6 +308,9 @@ We use the following constants throughout the protocol:
 
 ### TODO: Step generators
 
+* we are in a coset, so a fixed value `g=3` is chosen
+* we also must understand how to compute the skipped layers, that is what are the elements of the subgroups of order $2^i$ for $i$ in $[1, 2, 3, 4]$ used by the prover and what are their corresponding inverses.
+
 These are used to skip layers during the FRI protocol. Only 1, 2, 3, or 4 layers can be skipped, each associated to one of the constant below (except for skipping a single layer which is trivial):
 
 ```rust
@@ -308,6 +321,8 @@ const OMEGA_8: felt252 = 0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df
 // to skip 2 layers
 const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e;
 ```
+
+TODO: explain more here
 
 ## Dynamic Configurations
 
@@ -539,7 +554,9 @@ as you can see, this requires 8 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$,
 
 as you can see, this requires 16 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$, $\omega_8 v$, $- \omega_8 v$, $\omega_8^3 v$, $- \omega_8^3 v$, $\omega_16 v$, $-\omega_16 v$, $\omega_16^3 v$, $-\omega_16^3 v$, $\omega_16^5 v$, $-\omega_16^5 v$, $\omega_7 v$, $-\omega_7 v$.
 
-> Note: in the implementation, the division by 2 does not happen, thus the other side of the checked identity must be multiplied by 2 (TODO: where does this happen?)
+TODO: reconcile with section on the differences with vanilla FRI
+
+TODO: reconcile with constants used for elements and inverses chosen in subgroups of order $2^i$ (the $\omega$s)
 
 ## Flow
 

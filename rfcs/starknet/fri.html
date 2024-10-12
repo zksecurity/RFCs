@@ -338,11 +338,18 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <p>Note that these changes can easily be generalized to work when layers are skipped.</p>
 </section>
 <h2>Dependencies</h2>
+<section>
+<h3>Algorithms</h3>
 <ul>
 <li>circuit-friendly hash. Poseidon.</li>
 <li>default hash function. Keccak.</li>
 </ul>
 <p>TODO: why the alternate use of hash functions?</p>
+<h3>Evaluation of the first FRI layer</h3>
+<p>As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub></mrow></math>. This is abstracted in this specification as the function <code>eval_oods_polynomial</code> which acts as an oracle from FRI's perspective.</p>
+<p>TODO: not a very satisfying explanation</p>
+<p>Note that this function is not fixed here, as the polynomial being "tested" could be computed in different ways. See the <a href="stark.md">Starknet STARK verifier specification</a> for a concrete example (and for an explanation of why the function is named this way).</p>
+</section>
 <h2>Constants</h2>
 <p>TODO: field + generator from STARK spec</p>
 <p>We use the following constants throughout the protocol:</p>
@@ -351,6 +358,10 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <p><strong><code>MAX_FRI_STEP = 4</code></strong>. The maximum number of layers that can be skipped in FRI (see the overview for more details).</p>
 <section>
 <h3>TODO: Step generators</h3>
+<ul>
+<li>we are in a coset, so a fixed value <code>g=3</code> is chosen</li>
+<li>we also must understand how to compute the skipped layers, that is what are the elements of the subgroups of order <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mi>i</mi></msup></mrow></math> for <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>i</mi></mrow></math> in <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">[</mo><mn>1</mn><mo>&#x0002C;</mo><mn>2</mn><mo>&#x0002C;</mo><mn>3</mn><mo>&#x0002C;</mo><mn>4</mn><mo stretchy="false">]</mo></mrow></math> used by the prover and what are their corresponding inverses.</li>
+</ul>
 <p>These are used to skip layers during the FRI protocol. Only 1, 2, 3, or 4 layers can be skipped, each associated to one of the constant below (except for skipping a single layer which is trivial):</p>
 <pre><code class="language-rust">// to skip 4 layers
 const OMEGA_16: felt252 = 0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75;
@@ -359,6 +370,7 @@ const OMEGA_8: felt252 = 0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df
 // to skip 2 layers
 const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e;
 </code></pre>
+<p>TODO: explain more here</p>
 </section>
 <h2>Dynamic Configurations</h2>
 <p>The FRI protocol is globally parameterized according to the following variables which from the protocol making use of FRI. For a real-world example, check the <a href="stark.md">Starknet STARK verifier specification</a>.</p>
@@ -548,9 +560,8 @@ Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the <c
 <li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>4</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>1</mn></msup><mn>6</mn><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac><mo>&#x0002B;</mo><msubsup><mi>&#x003B6;</mi><mi>i</mi><mn>8</mn></msubsup><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>3</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>8</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn><mi>&#x000B7;</mi><msup><mi>v</mi><mn>8</mn></msup></mrow></mfrac></mrow></math></li>
 </ul>
 <p>as you can see, this requires 16 evaluations of p_{i} at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>4</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>8</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msubsup><mi>&#x003C9;</mi><mn>8</mn><mn>3</mn></msubsup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><mn>6</mn><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>3</mn></msup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>1</mn></msub><msup><mn>6</mn><mn>5</mn></msup><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mn>7</mn></msub><mi>v</mi></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>&#x003C9;</mi><mn>7</mn></msub><mi>v</mi></mrow></math>.</p>
-<blockquote>
-<p>Note: in the implementation, the division by 2 does not happen, thus the other side of the checked identity must be multiplied by 2 (TODO: where does this happen?)</p>
-</blockquote>
+<p>TODO: reconcile with section on the differences with vanilla FRI</p>
+<p>TODO: reconcile with constants used for elements and inverses chosen in subgroups of order <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mi>i</mi></msup></mrow></math> (the <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C9;</mi></mrow></math>s)</p>
 </section>
 <h2>Flow</h2>
 <p>throughout the flow it seems like a context object is passed (and mutated?):</p>
