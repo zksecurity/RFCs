@@ -9,4 +9,4 @@ serve:
     python -m http.server
 
 watch:
-    just serve & watchexec -w source/starknet/fri.md -w template.html just build ; 
+    just serve & watchexec -w source/starknet/fri.md -w template.html just build

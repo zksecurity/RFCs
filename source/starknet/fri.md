@@ -10,6 +10,8 @@ sotd: "none"
 
 ## Overview of FRI and FRI-PCS
 
+### Overview of FRI
+
 ```py
 # FRI
 # ---
@@ -368,7 +370,7 @@ TODO: validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
 
 ## Commitments
 
-Commitments of polynomials are done using [Merkle trees](). The merkle trees can be configured to hash some parameterized number of the lower layers using a circuit-friendly hash function (Poseidon).
+Commitments of polynomials are done using [Merkle trees](). The Merkle trees can be configured to hash some parameterized number of the lower layers using a circuit-friendly hash function (Poseidon).
 
 * TODO: why montgomery form?
 
@@ -382,7 +384,13 @@ A vector commitment is simply a Merkle tree.
 
 TODO: diagram.
 
-![](/img/starknet/fri/vector_commit.png)
+![vector commit](/img/starknet/fri/vector_commit.png)
+
+### Vector membership proofs
+
+A vector decommitment/membership proof must provide a witness (the neighbor nodes missing to compute the root of the Merkle tree) ordered in a specific way. The following algorithm dictates in which order the nodes hash values provided in the proof are consumed:
+
+![vector decommit](/img/starknet/fri/vector_decommit.png)
 
 ### Note on commitment multiple evaluations under the same leaf
 
@@ -461,213 +469,23 @@ def fri_commit(channel, unsent_commitment, cfg):
     return FriCommitment(cfg, inner_layers=commitments, eval_points, last_layer_coefficients=unsent_commitment.last_layer_coefficients)
 ```
 
-it seems like only the first round has a step size of 0, every other round has a step in `[1, MAX_FRI_STEP=4]`
+it seems like only the first round has a step size of 1, every other round has a step in `[1, MAX_FRI_STEP=4]`
+
+TODO: is first round really forced to have a step size of 1??
 
 ## Queries
 
-```rust
-struct FriLayerComputationParams {
-    coset_size: felt252,
-    fri_group: Span<felt252>,
-    eval_point: felt252,
-}
-
-#[derive(Drop, Copy, PartialEq, Serde)]
-struct FriLayerQuery {
-    index: felt252,
-    y_value: felt252, // the evaluation on the last layer
-    x_inv_value: felt252, // weirdly, we evaluate the last layer with 1/x^inv
-}
-```
-
-```py
-FIELD_GENERATOR = 3
-FIELD_GENERATOR_INVERSE = 1206167596222043737899107594365023368541035738443865566657697352045290673494 # 3^-1
-
-def generate_queries(channel, n_samples=cfg.n_queries, query_upper_bound=stark_domains.eval_domain_size):
-    # sample
-    samples = []
-    assert query_upper_bound != 0
-    for _ in range(n_samples):
-        res = channel.random_felt_to_prover()
-        low128 = res.low
-        let _, sample = div_rem(low128, query_upper_bound) # low128 % eval_domain_size ?
-        samples.append(sample)
-
-    # sort and remove duplicates
-    res = []
-    sorted = merge_sort(samples)
-    for i in range(1, len(sorted)):
-        curr = sorted[i]
-        if curr != prev:
-            res.append(curr)
-            prev = curr
-
-    return res
-
-def queries_to_points(queries, stark_domains):
-    points = []
-    assert stark_domains.log_eval_domain_size <= 64
-    shift = pow(2, 64 - stark_domains.log_eval_domain_size) # shift is just 2^(64-i) ? how does it change through layers?
-    for query in queries:
-        idx = query * shift
-        point = FIELD_GENERATOR * pow(stark_domains.eval_generator, idx.bit_reverse()) # TODO: ?
-        points.append(point)
-
-def gather_first_layer_queries(queries, evaluations, x_values):
-    fri_queries = []
-    for query, evaluation, x_value in zip(queries, evaluations, x_values):
-        shifted_x_value = x_value * FIELD_GENERATOR_INVERSE # x / g (TODO: why?)
-        fri_queries.append(FriLayerQuery(index=query.index, y_value=evaluation, x_inv_value=1/shifted_x_value))
-    return fri_queries
-
-def compute_coset_elements(queries, sibling_witness, coset_size, coset_start_index, fri_group):
-    coset_elements = []
-    coset_x_inv = 0
-    for i in range(coset_size):
-        if len(queries) > 0 and queries[0].index == coset_start_index + i:
-            query = queries.remove(0)
-            coset_elements.append(query.y_value)
-            coset_x_inv = query.x_inv_value * fri_group[i] # TODO: are elements of the FRI group used to create coset?
-        else:
-            coset_elements.append(sibling_witness.remove(0))
-
-    return coset_elements, coset_x_inv
-        
-
-# this seems to group queries by coset
-def compute_next_layer(queries, sibling_witness, params):
-    verify_indices = [] # coset used (its start index) for the query
-    verify_y_values = [] # all the evaluations queried in each coset
-    next_queries = [] # TODO: ?
-    while len(queries) != 0:
-        # defer verification of the query
-        coset_index = queries[0].index // params.coset_size
-        verify_indices.append(coset_index) # TODO: for merkle tree?
-
-        # compute coset element (TODO: what?)
-        coset_start_idx = coset_index * params.coset_size
-        coset_elements, coset_x_inv = compute_coset_elements(query, sibling_witness, params.coset_size, coset_start_idx, params.fri_group)
-
-        # at least one query was consumed (TODO: what?)
-        assert len(coset_elements) > 0
-
-        # defer verification of the y values (TODO: what?)
-        verify_y_values.extend(coset_elements)
-
-        # TODO: what?
-        fri_formula_res = fri_formula(coset_elements_span, params.eval_point, coset_x_inv, params.coset_size)
-
-        # TODO: what?
-        next_x_inv = coset_x_inv ** params.coset_size
-        next_queries.append(FriLayerQuery(index=coset_index, y_value=fri_formula_res, x_inv_value=next_x_inv))
-
-    return next_queries, verify_indices, verify_y_values
-
-def verify_last_layer(queries, poly):
-        for query in queries:
-            assert poly.eval(1/query.x_inv_value) == query.y_value
-
-def get_fri_group():
-    return [
-        0x1,
-        0x800000000000011000000000000000000000000000000000000000000000000,
-        0x625023929a2995b533120664329f8c7c5268e56ac8320da2a616626f41337e3,
-        0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e,
-        0x63365fe0de874d9c90adb1e2f9c676e98c62155e4412e873ada5e1dee6feebb,
-        0x1cc9a01f2178b3736f524e1d06398916739deaa1bbed178c525a1e211901146,
-        0x3b912c31d6a226e4a15988c6b7ec1915474043aac68553537192090b43635cd,
-        0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df6f4bc9ca34,
-        0x5ec467b88826aba4537602d514425f3b0bdf467bbf302458337c45f6021e539,
-        0x213b984777d9556bac89fd2aebbda0c4f420b98440cfdba7cc83ba09fde1ac8,
-        0x5ce3fa16c35cb4da537753675ca3276ead24059dddea2ca47c36587e5a538d1,
-        0x231c05e93ca34c35ac88ac98a35cd89152dbfa622215d35b83c9a781a5ac730,
-        0x00b54759e8c46e1258dc80f091e6f3be387888015452ce5f0ca09ce9e571f52,
-        0x7f4ab8a6173b92fda7237f0f6e190c41c78777feabad31a0f35f63161a8e0af,
-        0x23c12f3909539339b83645c1b8de3e14ebfee15c2e8b3ad2867e3a47eba558c,
-        0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75,
-    ]
-
-def fri_verify_layer_step(queries, step_size, eval_point, commitment, layer_witness, settings):
-    fri_group = get_fri_group()
-    coset_size = 2**step_size # TODO: woot?
-    params = FriLayerComputationParams(coset_size, fri_group, eval_point)
-
-    # compute the next layer
-    next_queries, verify_indices, verify_y_values = compute_next_layer(queries, layer_witness.leaves, params)
-
-    # verify stuff(TODO: what?)
-    table_decommit(commitment, verify_indices, TableDecommitment(values=verify_y_values), layer_witness.table_witness, settings)
-
-    return next_queries
-```
-
 ### How queries are generated
 
-* in generate_queries():
-  * each query is a 128-bit random value obtained by truncating the value sampled from F-S    
-  * it is then reduced to `log_eval_domain_size` bits (which is enforced to be strictely less than 64 bits)
-* in queries_to_points():
-  * it is then shifted to the left to make it a 64-bit value: `a = query * 2^(64 - stark_domains.log_eval_domain_size`
-  * it is then used to generate a point in the coset `3 * stark_domains.eval_generator^(a.bit_reverse())` (TODO: not sure why they bit reverse here, I think it's not necessary?)
-  * TODO: but how come this can point to something that can be corrected with the fri_group... where does it get inverted also?
-
-then:
-
-* fri_first_layer::gather_first_layer_queries(queries, evaluations, x_values)
-  * called with queries, decommitment.values, decommitment.points
-    * where decommitment.values = oods_poly_evals and points is the return value of `query_to_points` above
-  * FriLayerQuery with `index=queries[i], y_value=evaluations[i], x_inv_value = 3 / (x_values[i])`
-  * so this cancels the earlier `3 *` that we had, and removes us from the coset?
-
-TODO: how are x_values related to queries... wait WTF. Can I put the same x_values in EVERY query leaf?
-
-then these are returned:
-
-```rust
-(
-    FriVerificationStateConstant {
-        n_layers: (commitment.config.n_layers - 1).try_into().unwrap(), // -1 due to the first layer missing
-        commitment: commitment.inner_layers, // commitment of each poly (Except skipped layers)
-        eval_points: commitment.eval_points, // same for challenges
-        step_sizes: commitment
-            .config
-            .fri_step_sizes // step_sizes!
-            .slice(1, commitment.config.fri_step_sizes.len() - 1),
-        last_layer_coefficients_hash: hash_array(commitment.last_layer_coefficients), // hash of the last layer instead of commitment
-    },
-    FriVerificationStateVariable { 
-        iter: 0, // iter 0 <-- used to know where to point to in the state above
-        queries: fri_queries.span(),  // the fri queries calculated
-    }
-)
-```
-
-in subsequent queries, these two functions are called:
-
-```py
-# struct FriLayerQuery {
-#    index: felt252,
-#    y_value: felt252,
-#    x_inv_value: felt252,
-#}
-
-# next_queries contains
-# - the next (x, y_value) on the layer to double check (i.e. next_layer(x) = y)
-# - it also gives coset_index as help on where to check (in the merkle tree?)
-next_queries, verify_indices, verify_y_values = compute_next_layer(queries, layer_witness.leaves, params)
-
-# why don't we use layer_witness.leaves??? -> they are contained in verify_y_values
-# so this verifies that the evaluations we used are contained in the current layer's commitment, under the indices
-table_decommit(commitment, verify_indices, verify_y_values, layer_witness.table_witness, settings)
-retrun next_queries
-```
+TKTK
 
 ### Queries verification
 
-* Queries between layers verify that the next layer $p_{i+j}$ is computed correctly based on the currently layer $p_{i}$
-* The next layer is either the direct next layer $p_{i+1}$ or a layer further away if the configuration allows layers to be skipped
-* Specifically, each reduction is allowed to skip 1, 2, or 3 layers
+Queries between layers verify that the next layer $p_{i+j}$ is computed correctly based on the currently layer $p_{i}$.
+The next layer is either the direct next layer $p_{i+1}$ or a layer further away if the configuration allows layers to be skipped.
+Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the `MAX_FRI_STEP` constant).
+
+TODO: why MAX_FRI_STEP=3?
 
 no skipping:
 
@@ -784,11 +602,14 @@ final:
 
 1. ?
 
-### Test Vectors?
+### Test Vectors
+
+TKTK
 
 ### Security Considerations
 
 * number of queries?
 * size of domain?
+* proof of work stuff?
 
 security bits: `n_queries * log_n_cosets + proof_of_work_bits`

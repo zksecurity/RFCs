@@ -8,9 +8,10 @@ You can browse the RFCs in the [RFCs](rfcs) directory.
 
 setup and build with [just](https://github.com/casey/just):
 
-```
+```shell
 just setup
 just build
+just serve # this will serve on localhost:8000/rfcs/starknet/fri.html
 ```
 
 > [!NOTE]  
@@ -18,6 +19,6 @@ just build
 
 watch for any changes with [watchexec](https://github.com/watchexec/watchexec):
 
-```
-just watch
+```shell
+just watch # this will also serve on localhost:8000/rfcs/starknet/fri.html
 ```
