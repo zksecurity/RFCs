@@ -19,5 +19,5 @@ just build
 watch for any changes with [watchexec](https://github.com/watchexec/watchexec):
 
 ```
-watchexec -w source/starknet/fri.md -w template.html just build
+just watch
 ```
