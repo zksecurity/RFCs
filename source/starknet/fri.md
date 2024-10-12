@@ -279,8 +279,10 @@ Note that these changes can easily be generalized to work when layers are skippe
 
 ## Dependencies
 
-* Poseidon
-* other hash function
+* circuit-friendly hash. Poseidon.
+* default hash function. Keccak.
+
+TODO: why the alternate use of hash functions?
 
 ## Constants
 
@@ -309,15 +311,19 @@ const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99
 
 ## Dynamic Configurations
 
+The FRI protocol is globally parameterized according to the following variables which from the protocol making use of FRI. For a real-world example, check the [Starknet STARK verifier specification](stark.md).
+
+**`n_verifier_friendly_commitment_layers`**. The number of layers (starting from the bottom) that make use of the circuit-friendly hash.
+
 The protocol as implemented accepts proofs created using different parameters. This allows provers to decide on the trade-offs between proof size, prover time and space complexity, and verifier time and space complexity. 
 
 A FRI layer reduction can be configured with the following fields:
 
-**`n_columns`**. The number of values committed in each leaf of the Merkle tree. As explained in the overview, each FRI reduction makes predictible related queries to each layer, as such related points are grouped together to reduce multiple related queries to a single one.
+**`table_n_columns`**. The number of values committed in each leaf of the Merkle tree. As explained in the overview, each FRI reduction makes predictible related queries to each layer, as such related points are grouped together to reduce multiple related queries to a single one.
 
-**`vector_height`**. The height of the Merkle tree (TODO: why do we carry this if we already know the domain size there?)
+**`vector_height`**. The height of the Merkle tree. See the FRI config below to understand how this is validated. (TODO: why do we carry this if we already know the domain size there?)
 
-**`n_verifier_friendly_commitment_layers`**. The number of layers (starting from the bottom) that use a circuit-friendly hash (TODO: double check).
+**`vector_n_verifier_friendly_commitment_layers`**. The number of layers (starting from the bottom) that use a circuit-friendly hash (TODO: double check). (TODO: remove this level of detail? maybe not if this has to match the proof format)
 
 ```rust
 struct VectorCommitmentConfig {
@@ -596,11 +602,11 @@ initial (contained in verify_initial in the stark implementation):
 
 step:
 
-1. ?
+1. this produces the reduction between two layers (potentially including skipped layers, according to the configuration for that specific folding/reduction).
 
 final:
 
-1. ?
+1. the evaluations of the final layer, which is sent in clear by the prover.
 
 ### Test Vectors
 
