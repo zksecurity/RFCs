@@ -1,18 +1,14 @@
 ---
 title: "starknet FRI"
-abstract: "et voila"
+abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximity (FRI)</strong> is a cryptographic protocol that allows a prover to prove to a verifier (in an interactive, or non-interactive fashion) that a hash-based commitment (e.g. a Merkle tree) of a vector of values represent the evaluations of a polynomial of some known degree. (That is, the vector committed is not just a bunch of uncorrelated values.) The algorithm is often referred to as a \"low degree\" test, as the degree of the underlying polynomial is expected to be much lower than the degree of the field the polynomial is defined over. Furthermore, the algorithm can also be used to prove the evaluation of a committed polynomial, an application that is often called FRI-PCS. We discuss both algorithms in this document, as well as how to batch multiple instances of the two algorithms.</p>
+
+<p>For more information about the original construction, see <a href=\"https://eccc.weizmann.ac.il/report/2017/134/\">Fast Reed-Solomon Interactive Oracle Proofs of Proximity</a>. This document is about the specific instantiation of FRI and FRI-PCS as used by the StarkNet protocol.</p>
+
+<aside class=\"note\">Specifically, it matches the [integrity verifier](https://github.com/HerodotusDev/integrity/tree/main/src) which is a Cairo implementation of a Cairo verifier. There might be important differences with the Cairo verifier implemented in C++ or Solidity.</aside>"
 sotd: "none"
 ---
 
 ## Overview of FRI and FRI-PCS
-
-The **Fast Reed-Solomon Interactive Oracle Proofs of Proximity (FRI)** is a cryptographic protocol that allows a prover to prove to a verifier (in an interactive, or non-interactive fashion) that a hash-based commitment (e.g. a Merkle tree) of a vector of values represent the evaluations of a polynomial of some known degree. (That is, the vector committed is not just a bunch of uncorrelated values.) The algorithm is often referred to as a "low degree" test, as the degree of the underlying polynomial is expected to be much lower than the degree of the field the polynomial is defined over. Furthermore, the algorithm can also be used to prove the evaluation of a committed polynomial, an application that is often called FRI-PCS. We discuss both algorithms in this document, as well as how to batch multiple instances of the two algorithms.
-
-For more information about the original construction, see [Fast Reed-Solomon Interactive Oracle Proofs of Proximity](https://eccc.weizmann.ac.il/report/2017/134/). This document is about the specific instantiation of FRI and FRI-PCS as used by the StarkNet protocol.
-
-<aside class="note">Specifically, it matches the [integrity verifier](https://github.com/HerodotusDev/integrity/tree/main/src) which is a Cairo implementation of a Cairo verifier. There might be important differences with the Cairo verifier implemented in C++ or Solidity.</aside>
-
-### Vanilla FRI
 
 ```py
 # FRI
@@ -211,56 +207,92 @@ coset = [2 * g^i for i in range(8)]
 poly8_evals = [p0(x) for x in coset] # <-- we would merklelify this as statement
 ```
 
-### Differences with vanilla FRI
+### Overview of FRI-PCS
 
-All of the implementations above are implemented.
-In addition, there's a slight difference in how the prover folds each layer. 
-We explain this here.
-
-in the "vanilla FRI" the verifier gets evaluations of $p_0(v)$ and $p_0(-v)$ and computes the next layer's evaluation at $v^2$ as
+Given a polynomial $f$ and an evaluation point $a$, a prover who wants to prove that $f(a) = b$ can prove the related statement for some quotient polynomial $q$ of degree $deg(f) - 1$:
 
 $$
-\begin{align}
-p_1(v^2) = \frac{p_0(v) + p_0(-v)}{2} + \zeta_0 \frac{p_0(v) - p_0(-v)}{2v} \tag{1}
-\end{align}
+\frac{f(x) - b}{x-a} = q(x)
+$$
+
+(This is because if $f(a) = b$ then $a$ should be a root of $f(x) - b$ and thus the polynomial can be factored in this way.)
+
+Specifically, FRI-PCS proves that they can produce such a (commitment to a) polynomial $q$.
+
+### Overview of aggregating multiple FRI proofs.
+
+To prove that two polynomials $a$ and $b$ exist and are of degree at most $d$, a prove simply prove that a random linear combination of $a$ and $b$ exists and is of degree at most $d$.
+
+TODO: what if the different polynomials are of different degrees?
+
+### Notable differences with vanilla FRI
+
+Besides obvious missing implementation details from the description above, the protocol is pretty much instantiated as is, except for a few changes to the folding and querying process.
+
+As explained above, in the "vanilla FRI" protocol the verifier gets evaluations of $p_0(v)$ and $p_0(-v)$ and computes the next layer's evaluation at $v^2$ as
+
+$$
+p_{i+1}(v^2) = \frac{p_{i}(v) + p_{i}(-v)}{2} + \zeta_{i} \frac{p_{i}(v) - p_{i}(-v)}{2v}
 $$
 
 which is equivalent to
 
 $$
-p_1(v^2) = g_0(v^2) + \zeta_0 h_0(v^2)
+p_{i+1}(v^2) = g_{i}(v^2) + \zeta_{i} h_{i}(v^2)
 $$
 
 where 
 
 $$
-p_0(x) = g_0(x^2) + x h_0(x^2)
+p_{i}(x) = g_{i}(x^2) + x h_{i}(x^2)
 $$
 
----
-
-The implemented FRI uses a different formula to fold a layer's polynomial (assuming no skipped layer):
+The first difference in this specification is that, assuming no skipped layers, the folded polynomial is multiplied by 2:
 
 $$
-p_{i+1} = 2(g_0(v^2) + \zeta_0 \cdot 3^{-1} \cdot h_0(v^2)) 
+p_{i+1}(x) = 2(g_{i}(x) + \zeta_{i} \cdot 3^{-1} \cdot h_{i}(x)) 
 $$
 
-This shouldn't impact the protocol as we are just scaling with constants, but the verifier has to modify their queries slightly. They need to check that
+This shouldn't impact the protocol as we are just scaling with constants, but the verifier has to modify their queries slightly by not dividing by 2:
 
 $$
-p_1(v^2) = p_0(v) + p_0(-v) + \zeta_0 \cdot g \cdot \frac{p_0(v) - p_0(-v)}{v}\tag{1}
+p_{i+1}(v^2) = p_{i}(v) + p_{i}(-v) + \zeta_{i} g \cdot \frac{p_{i}(v) - p_{i}(-v)}{v}
 $$
 
-I'm not sure exactly why they do this, it doesn't seem to me like there is any significant performance improvement at first sight.
+The second difference is that while the evaluations of the first layer $p_0$ happen in a coset, further evaluations happen in the original evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the verifier removes the multiplication with the fixed element $g$ (as an evaluated point $v$ can be written $g \cdot v'$ for $v'$ in our original domain):
 
+$$
+p_{1}(v^2) = p_{0}(v) + p_{0}(-v) + \zeta_{0} \cdot g \cdot \frac{p_{0}(v) - p_{0}(-v)}{v}
+$$
+
+On their side, the prover has to use the challenge $\zeta_{0} / g$ instead of $\zeta_{0}$ when folding the polynomial:
+
+$$
+p_{1}(x) = g_{0}(x^2) + \frac{\zeta_{0}}{g} \cdot h_{0}(x^2)
+$$
+
+Then both side compute the next layer's queries for $p_1$ as $(v/g)^2$ (assuming no skipped layers, again). After that, everything happens as normal (except that now the prover uses the original evaluation domain instead of a coset to evaluate and commit to the layer polynomials).
+
+Note that these changes can easily be generalized to work when layers are skipped.
+
+## Dependencies
+
+* Poseidon
+* other hash function
 
 ## Constants
 
-* MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15
-* MAX_FRI_LAYERS = 15
-* MAX_FRI_STEP = 4
+TODO: field + generator from STARK spec
 
-### Step generators
+We use the following constants throughout the protocol:
+
+**`MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15`**. TKTK
+
+**`MAX_FRI_LAYERS = 15`**. The maximum number of layers in the FRI protocol. This means that the protocol can test that committed polynomials exist and are of degree at most $2^{15}$. (TODO: double check)
+
+**`MAX_FRI_STEP = 4`**. The maximum number of layers that can be skipped in FRI (see the overview for more details).
+
+### TODO: Step generators
 
 These are used to skip layers during the FRI protocol. Only 1, 2, 3, or 4 layers can be skipped, each associated to one of the constant below (except for skipping a single layer which is trivial):
 
@@ -273,7 +305,17 @@ const OMEGA_8: felt252 = 0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df
 const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e;
 ```
 
-## Configuration
+## Dynamic Configurations
+
+The protocol as implemented accepts proofs created using different parameters. This allows provers to decide on the trade-offs between proof size, prover time and space complexity, and verifier time and space complexity. 
+
+A FRI layer reduction can be configured with the following fields:
+
+**`n_columns`**. The number of values committed in each leaf of the Merkle tree. As explained in the overview, each FRI reduction makes predictible related queries to each layer, as such related points are grouped together to reduce multiple related queries to a single one.
+
+**`vector_height`**. The height of the Merkle tree (TODO: why do we carry this if we already know the domain size there?)
+
+**`n_verifier_friendly_commitment_layers`**. The number of layers (starting from the bottom) that use a circuit-friendly hash (TODO: double check).
 
 ```rust
 struct VectorCommitmentConfig {
@@ -285,23 +327,31 @@ struct TableCommitmentConfig {
     n_columns: felt252,
     vector: VectorCommitmentConfig,
 }
+```
 
+A FRI configuration contains the following fields:
+
+**`log_input_size`**. The size of the input layer to FRI (the number of evaluations committed). (TODO: double check)
+
+**`n_layers`**. The number of layers or folding that will occur as part of the FRI proof.
+
+**`inner_layers`**. The configuration for each of the layers (minus the first layer).
+
+**`fri_step_sizes`**. The number of layers to skip for each folding/reduction of the protocol.
+
+**`log_last_layer_degree_bound`**. The degree of the last layer's polynomial. As it is sent in clear as part of the FRI protocol, this value represents the (log) number of coefficients (minus 1) that the proof will contain.
+
+```rust
 struct FriConfig {
-    // Log2 of the size of the input layer to FRI.
     log_input_size: felt252,
-    // Number of layers in the FRI. Inner + last layer.
     n_layers: felt252,
-    // Array of size n_layers - 1, each entry is a configuration of a table commitment for the
-    // corresponding inner layer.
     inner_layers: Span<TableCommitmentConfig>,
-    // Array of size n_layers, each entry represents the FRI step size,
-    // i.e. the number of FRI-foldings between layer i and i+1.
     fri_step_sizes: Span<felt252>,
     log_last_layer_degree_bound: felt252,
 }
 ```
 
-validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
+TODO: validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
 
 * the number of layers `n_layers` must be within the range `[2, MAX_FRI_LAYERS]` (see constants)
 * the `log_last_layer_degree_bound` must be less or equal to `MAX_LAST_LAYER_LOG_DEGREE_BOUND`
@@ -316,117 +366,11 @@ validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
   * TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)
   * where `log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound`
 
-note: I think each proof can basically choose these parameters to trade off between proof size / cairo steps / prover space&time.
-
 ## Commitments
 
-* Merkle tree commitments
-* montgomery form?
+Commitments of polynomials are done using [Merkle trees](). The merkle trees can be configured to hash some parameterized number of the lower layers using a circuit-friendly hash function (Poseidon).
 
-
-```rust
-#[derive(Drop, Copy, Serde, starknet::Store)]
-struct VerifierSettings {
-    cairo_version: CairoVersion,
-    hasher_bit_length: HasherBitLength,
-    stone_version: StoneVersion,
-}
-```
-
-```py
-def hash_blake_or_poseidon(x, y, is_verifier_friendly, settings):
-    if is_verifier_friendly:
-        return hades_permutation(x, y, 2)
-    return hash_truncated([x, y], settings)
-
-# queue contains the path to take from leaf to root (with values)
-# authentications contain the sibling nodes needed
-# but the very first leaf should be the given element!
-# TODO: where do they check that?
-def compute_root_from_queries(queue, start, n_verifier_friendly_layers, authentications, auth_start, settings):
-    curent = queue[start]
-
-    if current.index == 1: # root
-        assert current.depth == 0
-        assert start + 1 == len(queue) # TODO: why? I thought the queue contained MANY queries?
-        assert auth_start == len(authentications)
-        return current.value
-    
-    parent, bit = div_rem(current.index, 2) # current.index = 2 * parent + bit
-    is_verifier_friendly = n_verifier_friendly_layers >= current.depth
-
-    hash_ = None
-    if bit == 1: # right node
-        assert auth_start != len(authentications)
-        hash_ = hash_blake_or_poseidon(authentications[auth_start], current.value, is_verifier_friendly, settings)
-    else: # left node
-        # edge-case (TODO: why would the right node be next in the queue?): 
-        if start + 1 != len(queue) and current.index + 1 == queue[start+1].index:
-                hash_ = hash_blake_or_poseidon(current.value, queue[start+1], is_verifier_friendly, settings)
-                queue.append(VectorQueryWithDepth(index=parent, value=hash_, depth=current.depth-1))
-                return compute_root_from_queries(queue, start+2, n_verifier_friendly_layers, authentications, auth_start, settings)
-        assert auth_start != len(authentications)
-        hash_ = hash_blake_or_poseidon(current.value, authentications[auth_start], is_verifier_friendly, settings)
-
-    # add our computed node in the above layer in the queue, then recurse
-    queue.append(VectorQueryWithDepth(index=parent,value=hash_,depth=current.depth-1))
-    return compute_root_from_queries(queue, start+1, n_verifier_friendly_layers, authentications, auth_start+1, settings)
-
-def shift_queries(queries, shift, height):
-    shifted_queries = []
-    for query in queries:
-        shifted_queries.append(VectorQueryDepth(index=query.index + shift, value=query.value, depth=height))
-    return shifted_queries
-
-
-def generate_vector_queries(queries, values, n_columns, is_verifier_friendly, settings):
-    vector_queries = []
-    for i in range(len(queries)):
-        hash_ = None
-        if n_columns == 1:
-            hash_ = values[i]
-        else: # if there are multiple columns, their hashes are hashed in a single hash
-            to_hash = values[i * n_columns: (i + 1) * n_columns]
-            if is_verifier_friendly:
-                hash_ = poseidon_hash_span(to_hash)
-            else:
-                hash_ = hash_truncated(to_hash, settings)
-        vector_queries.append(VectorQuery(index=queries[i], value=hash_))
-    return vector_queries
-
-def vector_commitment_decommit(commitment, queries, witness, settings):
-    shift = pow(2, commitment.config.height) # 2^height
-
-    # TODO: I think because we produce the same query for each coset/column?
-    # if we have multiple columns, we need this?
-    shifted_queries = shift_queries(queries, shift, commitment.config.height)
-
-    # compute root from queries
-    expected_commitment = compute_root_from_queries(shifted_queries, 0, commitment.config.n_verifier_friendly_commitment_layers, witness.authentications, 0, settings)
-
-    # check that it matches the known root
-    assert expected_commitment == commitment.commitment_hash
-
-
-def table_decommit(commitment, queries, decommitment, witness, settings):
-    n_queries = len(queries)
-
-    # a verifier-friendly hash function is used for the bottom layers
-    # (the other layers' hash functions are determined in the vector_commitment stuff)
-    n_verifier_friendly_layers = commitment.vector_commitment.config.n_verifier_friendly_commitment_layers
-    bottom_layer_depth = commitment.vector_commitment.config.height + 1 # fix height by one due to missing layer0
-    is_bottom_layer_verifier_friendly = n_verifier_friendly_layers >= bottom_layer_depth
-
-    assert commitment.config.n_columns >= 1
-    assert len(decommitment.values) == n_queries * n_columns # TODO: what is a column here?
-
-    # TODO: ?
-    montgomery_values = to_montgomery(decommitment.values)
-
-    #
-    vector_queries = generate_vector_queries(queries, montgomery_values, commitment.config.n_columns, is_bottom_layer_verifier_friendly, settings)
-    vector_commitment_decommit(commitment.vector_commitment, vector_queries, witness.vector, settings)
-```
+* TODO: why montgomery form?
 
 ### Table commitments
 
@@ -434,9 +378,11 @@ A table commitment in this context is a vector commitment where leaves are poten
 
 ### Vector commitments
 
-A vector commitment. TODO: diagram.
+A vector commitment is simply a Merkle tree. 
 
+TODO: diagram.
 
+![](/img/starknet/fri/vector_commit.png)
 
 ### Note on commitment multiple evaluations under the same leaf
 
