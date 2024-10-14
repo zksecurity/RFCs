@@ -64,24 +64,33 @@ def apply_section_headers(html):
     # This could be more robust with a proper HTML parser
     lines = html.splitlines()
     new_lines = []
-    section_level = 1
+    section_level = 0
+    root_section_level = 0
 
     for line in lines:
         if line.startswith("<h"):
             match = re.match(r"<h(\d)>", line)
+
             if match:
                 level = int(match.group(1))  # Extract header level (h1, h2, etc.)
+                if root_section_level == 0:
+                    root_section_level = level
+                    assert root_section_level == 2, "First section must be an h2!"
+
                 if level > section_level:  # h2 -> h3
-                    new_lines.append("<section>")
                     section_level = level
                 elif level < section_level:  # h3 -> h2
                     new_lines.extend(["</section>"] * (1 + section_level - level))
                     section_level = level
                 else:  # h2 -> h2
-                    new_lines.append("</section><section>")
+                    new_lines.append("</section>")
+
+                new_lines.append("<section>")
         new_lines.append(line)
 
-    new_lines.extend(["</section>"] * section_level)  # Close remaining sections
+    new_lines.extend(
+        ["</section>"] * (section_level - 1)
+    )  # Close remaining sections (we assume first section was an h2!)
     return "\n".join(new_lines)
 
 
@@ -96,7 +105,8 @@ def html_to_respec(metadata, html_content):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_path", help="markdown input file")
-    parser.add_argument("--output_path", default="spec.html", help="HTML output file")
+    parser.add_argument("--output-path", default="spec.html", help="HTML output file")
+    parser.add_argument("--pure-html", action="store_true", help="Output pure HTML")
     args = parser.parse_args()
 
     # ensure that input path is a .md file
@@ -110,8 +120,10 @@ def main():
     # Example usage
     config = {"section_headers": True}  # Enable section headers
 
-    metadata, html_inner = convert_markdown_to_html(args.input_path, config)
-    html_output = html_to_respec(metadata, html_inner)
+    metadata, html_output = convert_markdown_to_html(args.input_path, config)
+
+    if not args.pure_html:
+        html_output = html_to_respec(metadata, html_output)
 
     print(html_output)
 

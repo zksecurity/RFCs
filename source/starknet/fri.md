@@ -84,7 +84,7 @@ def split_poly(p, remove_square=True):
     return g, h
 ```
 
-<aside class="note">When instantiating the FRI protocol, like in this specification, the verifier is removed using the <a href="https://en.wikipedia.org/wiki/Fiat%E2%80%93Shamir_heuristic">Fiat-Shamir</a> transformation in order to make the protocol non-interactive.</a>
+<aside class="note">When instantiating the FRI protocol, like in this specification, the verifier is removed using the <a href="https://en.wikipedia.org/wiki/Fiat%E2%80%93Shamir_heuristic">Fiat-Shamir</a> transformation in order to make the protocol non-interactive.</a></aside>
 
 We can look at the following example to see how a polynomial of degree $7$ is reduced to a polynomial of degree $0$ in 3 rounds:
 
@@ -196,7 +196,7 @@ assert p2(v^4) == (p1_v_square + p1_neg_v_square)/2 + zeta1 * (p1_v_square - p1_
 
 <aside class="note">There is no point producing a new challenge `zeta1` as nothing more was observed from the verifier's point of view during the skipped round. As such, FRI implementations will usually use `zeta0^2` as "folding factor" (and so on if more foldings occur).</aside>
 
-#### Last layer optimization
+#### Last Layer Optimization
 
 Section 3.11.2 "FRI Last Layer" of the ethSTARK paper describes an optimization which stops at an earlier round. We show this here by removing the last round.
 
@@ -207,7 +207,9 @@ p2_v = h2 + v^4 * g2 # they can then compute p2(v^4) directly
 assert g1_square + zeta1 * h1_square == p2_v # and then check correctness
 ```
 
-#### How would commitments work?
+#### Commitments
+
+Commitments used in this specification are Merkle tree commitments of evaluations of a polynomial. In other words, the leaves of the Merkle tree are evaluations of a polynomial at distinct points.
 
 We use a coset to evaluate the polynomial at the different points. This is for two reasons:
 
@@ -236,13 +238,13 @@ $$
 
 Specifically, FRI-PCS proves that they can produce such a (commitment to a) polynomial $q$.
 
-### Overview of aggregating multiple FRI proofs.
+### Overview of aggregating multiple FRI proofs
 
 To prove that two polynomials $a$ and $b$ exist and are of degree at most $d$, a prove simply prove that a random linear combination of $a$ and $b$ exists and is of degree at most $d$.
 
 TODO: what if the different polynomials are of different degrees?
 
-### Notable differences with vanilla FRI
+## Notable differences with vanilla FRI
 
 Besides obvious missing implementation details from the description above, the protocol is pretty much instantiated as is, except for a few changes to the folding and querying process.
 
@@ -276,6 +278,10 @@ $$
 p_{i+1}(v^2) = p_{i}(v) + p_{i}(-v) + \zeta_{i} g \cdot \frac{p_{i}(v) - p_{i}(-v)}{v}
 $$
 
+---
+
+<aside class="warning">Actually the following is wrong. I'm still not sure I get it.</aside>
+
 The second difference is that while the evaluations of the first layer $p_0$ happen in a coset, further evaluations happen in the original evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the verifier removes the multiplication with the fixed element $g$ (as an evaluated point $v$ can be written $g \cdot v'$ for $v'$ in our original domain):
 
 $$
@@ -294,10 +300,14 @@ Note that these changes can easily be generalized to work when layers are skippe
 
 ## Dependencies
 
-### Algorithms
+In this section we list all dependencies and the API this standard relies on.
 
-* circuit-friendly hash. Poseidon.
-* default hash function. Keccak.
+### Hash Functions
+
+We rely on two type of hash functions:
+
+* A circuit-friendly hash. Specifically, **Poseidon**.
+* A standard hash function. Specifically, **Keccak**.
 
 TODO: why the alternate use of hash functions?
 
@@ -311,15 +321,33 @@ Note that this function is not fixed here, as the polynomial being "tested" coul
 
 ## Constants
 
-TODO: field + generator from STARK spec
+We use the following constants throughout the protocol.
 
-We use the following constants throughout the protocol:
+### Protocol constants
+
+The Starknet prime is $2^{251} + 17 \cdot 2^{192} + 1$:
+
+```rust
+const STARK_PRIME: u256 =
+    3618502788666131213697322783095070105623107215331596699973092056135872020481;
+```
+
+**`FIELD_GENERATOR`**. We use $3$ as generator for the main multiplicative subgroup of the Starknet field.
+
+### FRI constants
 
 **`MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15`**. TKTK
 
 **`MAX_FRI_LAYERS = 15`**. The maximum number of layers in the FRI protocol. This means that the protocol can test that committed polynomials exist and are of degree at most $2^{15}$. (TODO: double check)
 
 **`MAX_FRI_STEP = 4`**. The maximum number of layers that can be skipped in FRI (see the overview for more details).
+
+
+
+const MONTGOMERY_R: felt252 =
+    3618502788666127798953978732740734578953660990361066340291730267701097005025; // 2**256 % STARK_PRIME
+const MONTGOMERY_R_INVERSE: felt252 =
+    113078212145816603762751633895895194930089271709401121343797004406777446400;
 
 ### TODO: Step generators
 
