@@ -1,0 +1,25 @@
+name: Build and Check for Changes
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build project
+        run: just build
+
+      - name: Check for changes
+        run: |
+          git status --porcelain
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "Error: There are uncommitted changes after the build."
+            exit 1
+          fi
