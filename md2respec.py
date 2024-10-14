@@ -64,19 +64,21 @@ def apply_section_headers(html):
     # This could be more robust with a proper HTML parser
     lines = html.splitlines()
     new_lines = []
-    section_level = 0
+    section_level = 1
 
     for line in lines:
         if line.startswith("<h"):
             match = re.match(r"<h(\d)>", line)
             if match:
                 level = int(match.group(1))  # Extract header level (h1, h2, etc.)
-                if level > section_level:
+                if level > section_level:  # h2 -> h3
                     new_lines.append("<section>")
                     section_level = level
-                elif level < section_level:
-                    new_lines.extend(["</section>"] * (section_level - level))
+                elif level < section_level:  # h3 -> h2
+                    new_lines.extend(["</section>"] * (1 + section_level - level))
                     section_level = level
+                else:  # h2 -> h2
+                    new_lines.append("</section><section>")
         new_lines.append(line)
 
     new_lines.extend(["</section>"] * section_level)  # Close remaining sections

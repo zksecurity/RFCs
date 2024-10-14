@@ -10,21 +10,25 @@ sotd: "none"
 
 ## Overview of FRI and FRI-PCS
 
+We briefly give an overview of the FRI protocol, before specifying how it is used in the StarkNet protocol.
+
 ### Overview of FRI
 
-```py
-# FRI
-# ---
-#
-# We follow the ethSTARK paper (https://eprint.iacr.org/2021/582) 
-#
-# 
-# Setup
-# =====
-#
-# We use the starknet field (https://docs.starknet.io/architecture-and-concepts/cryptography/p-value/)
-#
+<aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
 
+FRI is a protocol that works by successively reducing the degree of a polynomial, and where the last reduction is a constant polynomial of degree $0$. Typically the protocol obtains the best runtime complexity when each reduction can halve the degree of its input polynomial. For this reason, FRI is typically described and instantiated on a polynomial of degree a power of $2$.
+
+If the reductions are "correct", and it takes $n$ reductions to produce a constant polynomial in the "last layer", then it is a proof that the original polynomial at "layer 0" was of degree at most $2^n$.
+
+In order to ensure that the reductions are correct, two mechanisms are used:
+
+1. First, an interactive protocol is performed with a verifier who helps randomizing the halving of polynomials. In each round the prover commits to a "layer" polynomial.
+2. Second, as commitments are not algebraic objects (as FRI works with hash-based commitments), the verifier query them in multiple points to verify that an output polynomial is consistant with its input polynomial and a random challenge. (Intuitively, the more queries, the more secure the protocol.)
+
+To illustrate how FRI works, one can use [sagemath](https://www.sagemath.org/) with the following setup:
+
+```py
+# We use the starknet field (https://docs.starknet.io/architecture-and-concepts/cryptography/p-value/)
 starknet_prime = 2^251 + 17*2^192 + 1
 starknet_field = GF(starknet_prime)
 polynomial_ring.<x> = PolynomialRing(starknet_field)
@@ -56,12 +60,13 @@ assert find_gen2(0)^1 == 1
 assert find_gen2(1)^2 == 1
 assert find_gen2(2)^4 == 1
 assert find_gen2(3)^8 == 1
+```
 
-#
-# How are polynomials split in two in FRI?
-# ========================================
-#
+A reduction in the FRI protocol is obtained by interpreting an input polynomial $p$ as a polynomial of degree $2n$ and splitting it into two polynomials $g$ and $h$ of degree $n$ such that $p(x) = g(x^2) + x h(x^2)$.
 
+Then, with the help of a verifier's random challenge $\zeta$, we can produce a random linear combination of these polynomials to obtain a new polynomial $g(x) + \zeta h(x)$ of degree $n$:
+
+```py
 def split_poly(p, remove_square=True):
     assert (p.degree()+1) % 2 == 0
     g = (p + p(-x))/2 # <---------- nice trick!
@@ -77,13 +82,13 @@ def split_poly(p, remove_square=True):
         assert g.degree() == h.degree() == p.degree() - 1
         assert p(7) == g(7) + 7 * h(7)
     return g, h
+```
 
-#
-# FRI reduction example
-# =====================
-# Here's the commit phase of FRI (without the actual commitments)
-#
+<aside class="note">When instantiating the FRI protocol, like in this specification, the verifier is removed using the <a href="https://en.wikipedia.org/wiki/Fiat%E2%80%93Shamir_heuristic">Fiat-Shamir</a> transformation in order to make the protocol non-interactive.</a>
 
+We can look at the following example to see how a polynomial of degree $7$ is reduced to a polynomial of degree $0$ in 3 rounds:
+
+```py
 # p0(x) = 1 + 2x + 3x^2 + 4x^3 + 5x^4 + 6x^5 + 7x^6 + 8x^7
 # degree 7 means that we'll get ceil(log2(7)) = 3 rounds (and 4 layers)
 p0 = polynomial_ring([1, 2, 3, 4, 5, 6, 7, 8]) 
@@ -109,19 +114,37 @@ zeta2 = 3920 # <---------- the verifier would pick a random zeta
 p3 = h2 + zeta2 * g2 # <-- the prover could send p3 in the clear
 assert p2(zeta2) == p3
 assert p3.degree() == 0
+```
 
-#
-# FRI query examples
-# ==================
-# Let's look at what the verifier would have to check at the end.
-#
+<aside class="note">In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represent the proper reduction of the previous layer's polynomial.</aside>
 
+Given a polynomial $p_0(x) = g_0(x^2) + x h_0(x^2)$ and two of its evaluations at some points $v$ and $-v$, we can see that the verifier can recover the two halves by computing:
+
+* $g_0(v^2) = \frac{p_0(v) + p_0(-v)}{2}$
+* $h_0(v^2) = \frac{p_0(v) - p_0(-v)}{2v}$
+
+Then, the verifier can compute the next layer's evaluation at $v^2$ as:
+
+$$
+p_{1}(v^2) = g_0(v^2) + \zeta_0 h_0(v^2)
+$$
+
+We can see this in our previous example:
+
+```py
 # first round/reduction
-v = 392 # <--------------------------------------- fake sample a point
+v = 392 # <-------------------------------------- fake sample a point
 p0_v, p0_v_neg = p0(v), p0(-v) # <--------------- the 2 queries we need
 g0_square = (p0_v + p0_v_neg)/2
 h0_square = (p0_v - p0_v_neg)/(2 * v)
 assert p0_v == g0_square + v * h0_square # <------ sanity check
+```
+
+<aside class="note">In practice, the evaluations would be done by querying a commitment to the polynomial. These queries are different from the <strong>FRI queries</strong> (which enforce consistency between layers of reductions), they are <strong>evaluation queries or commitment queries</strong> and result in practice in the prover providing a Merkle membership proof (also called decommitment in this specification) to the committed polynomial.</aside>
+
+As we already have an evaluation of $v^2$ of the next layer's polynomial $p_1$, we can simply query the evaluation of $p_1(-v^2)$ to continue the **FRI query** process on the next layer, and so on:
+
+```py
 p1_v = p1(v^2) # <-------------------------------- query on the next layer
 assert g0_square + zeta0 * h0_square == p1_v # <--- the correctness check
 
@@ -139,30 +162,22 @@ g2_square = (p2_v + p2_v_neg)/2 # g2(v^8)
 h2_square = (p2_v - p2_v_neg)/(2 * v^4) # h2(v^8)
 assert p2_v == g2_square + v^4 * h2_square # p2(v^4) = g2(v^8) + v^4 * h2(v^8)
 assert p3 == g2_square + zeta2 * h2_square # we already received p3 at the end of the protocol
+```
 
+#### Skipping FRI layers
 
-#
-# skipping FRI layers optimization
-# ================================
-# section 3.11.1 "Skipping FRI Layers" of the ethSTARK paper describes an optimization which skips some of the layers/rounds.
-# unfortunately they don't describe much on how to achieve this, 
-# but "A summary on the FRI low degree test" (https://eprint.iacr.org/2022/1216.pdf) has more detail.
-#
-# The intuition is the following: if we removed the first round commitment (to the polynomial p1), 
-# then the verifier would not be able to:
-#
-# - query p1(v^2) to verify that layer
-# - query p1(-v^2) to continue the protocol and get g1, h1
-#
-# The first point is fine, as there's nothing to check the correctness of.
-# To address the second point, we can use the same technique we use to compute p1(v^2).
-# Remember, we needed p0(v) and p0(-v) to compute g0(v^2) and h0(v^2).
-# But to compute g0(-v^2) and h0(-v^2), we need the quadratic residues of -v^2,
-# that is w, such that w^2 = -v^2,
-# so that we can compute g0(-v^2) and h0(-v^2) from p0(w) and p0(-w).
-#
-# We can easily compute them by using tau, the generator of the subgroup of order 4
+Section 3.11.1 "Skipping FRI Layers" of the ethSTARK paper describes an optimization which skips some of the layers/rounds. The intuition is the following: if we removed the first round commitment (to the polynomial $p_1$), then the verifier would not be able to:
 
+- query $p_1(v^2)$ to verify that layer
+- query $p1(-v^2)$ to continue the protocol and get $g_1, h_1$
+
+The first point is fine, as there's nothing to check the correctness of. To address the second point, we can use the same technique we use to compute $p1(v^2)$. Remember, we needed $p_0(v)$ and $p_0(-v)$ to compute $g_0(v^2)$ and $h_0(v^2)$.
+But to compute $g_0(-v^2)$ and $h_0(-v^2)$, we need the quadratic residues of $-v^2$, that is $w$, such that $w^2 = -v^2$,
+so that we can compute $g_0(-v^2)$ and $h_0(-v^2)$ from $p_0(w)$ and $p_0(-w)$.
+
+We can easily compute them by using $\tau$ (`tau`), the generator of the subgroup of order $4$:
+
+```py
 tau = find_gen2(2)
 assert tau.multiplicative_order() == 4
 
@@ -172,40 +187,40 @@ assert (tau^3 * v)^2 == -v^2
 
 # and when we query p2(v^4) we can verify that it is correct
 # if given the evaluations of p0 at v, -v, tau*v, tau^3*v
-
 p0_tau_v = p0(tau * v)
 p0_tau3_v = p0(tau^3 * v)
 p1_v_square = (p0_v + p0_v_neg)/2 + zeta0 * (p0_v - p0_v_neg)/(2 * v)
 p1_neg_v_square = (p0_tau_v + p0_tau3_v)/2 + zeta0 * (p0_tau_v - p0_tau3_v)/(2 * tau * v)
 assert p2(v^4) == (p1_v_square + p1_neg_v_square)/2 + zeta1 * (p1_v_square - p1_neg_v_square)/(2 * v^2)
+```
 
-# note that there is no point producing a new challenge zeta1 as nothing more was observed from the verifier's point of view during the skipped round.
-# as such, FRI implementations will usually use zeta0^2 as "folding factor"
-# (and so on if more folding occurs)
+<aside class="note">There is no point producing a new challenge `zeta1` as nothing more was observed from the verifier's point of view during the skipped round. As such, FRI implementations will usually use `zeta0^2` as "folding factor" (and so on if more foldings occur).</aside>
 
-# 
-# Last layer optimization
-# =======================
-# section 3.11.2 "FRI Last Layer" of the ethSTARK paper describes an optimization which stops at an earlier round. 
-# We show this here by removing the last round.
-#
+#### Last layer optimization
 
-# at the end of the second round we imagine that the verifier receives the coefficients of p2 (h2 and g2) directly
+Section 3.11.2 "FRI Last Layer" of the ethSTARK paper describes an optimization which stops at an earlier round. We show this here by removing the last round.
+
+At the end of the second round we imagine that the verifier receives the coefficients of $p_2$ ($h_2$ and $g_2$) directly:
+
+```py
 p2_v = h2 + v^4 * g2 # they can then compute p2(v^4) directly
 assert g1_square + zeta1 * h1_square == p2_v # and then check correctness
+```
 
-#
-# How would commitments work?
-# ===========================
-#
+#### How would commitments work?
 
+We use a coset to evaluate the polynomial at the different points. This is for two reasons:
+
+1. In FRI we can increase the size of the evaluated domain in the commitments, in order to decrease the number of queries needed to ensure high bit-security. (TODO: how do cosets help us here?)
+2. As used in Starknet STARK (TODO: link to the STARK verifier specification), the layer 0 polynomial has to be computed as a rational polynomial that would lead to division by zero issues if evaluated in the original evaluation domain. As such we take a coset to avoid this issue.
+
+As with what we specify in the rest of this document, we produce a coset of the same size as the evaluation domain (the domain which is used to produce the layer 0 polynomial in the Starknet STARK protocol).
+
+```py
 # if we evaluate the polynomial on a set of size 8 (so the blowup factor is 1)
 g = find_gen2(log(8,2))
 
-# we use a coset (e.g. 2 * g^i) to evaluate the polynomial at the different points
-# (as otherwise we can't compute some of the rational polynomials)
-# (the DEEP polynomial of the ethSTARK protocol might divide by zero)
-coset = [2 * g^i for i in range(8)] 
+coset = [3 * g^i for i in range(8)] 
 poly8_evals = [p0(x) for x in coset] # <-- we would merklelify this as statement
 ```
 
@@ -558,7 +573,7 @@ TODO: reconcile with section on the differences with vanilla FRI
 
 TODO: reconcile with constants used for elements and inverses chosen in subgroups of order $2^i$ (the $\omega$s)
 
-## Flow
+## Full (Broken Up) Protocol
 
 throughout the flow it seems like a context object is passed (and mutated?):
 
@@ -625,11 +640,11 @@ final:
 
 1. the evaluations of the final layer, which is sent in clear by the prover.
 
-### Test Vectors
+## Test Vectors
 
 TKTK
 
-### Security Considerations
+## Security Considerations
 
 * number of queries?
 * size of domain?
