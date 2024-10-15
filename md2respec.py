@@ -1,10 +1,8 @@
 import argparse
 import frontmatter
-
+import os
 import latex2mathml.converter
 import markdown
-
-# import markdown2
 import re
 from string import Template
 
@@ -46,7 +44,28 @@ def convert_markdown_to_html(markdown_file, config):
     if config.get("section_headers", False):
         html = apply_section_headers(html)
 
+    # Apply base URL from environment variable if present
+    base_url = os.environ.get("BASE_URL", "")
+    if base_url:
+        html = apply_base_url(html, base_url)
+
     return metadata, html
+
+
+def apply_base_url(html, base_url):
+    """
+    Prepends the base URL to absolute links in the HTML.
+
+    Args:
+      html: The HTML string to process.
+      base_url: The base URL to prepend.
+
+    Returns:
+      The modified HTML string with updated links.
+    """
+    # This uses a simple regex to find absolute links.
+    # A more robust solution might use an HTML parser.
+    return re.sub(r'(href|src)="(/[^"]+)"', rf'\1="{base_url}\2"', html)
 
 
 def apply_section_headers(html):

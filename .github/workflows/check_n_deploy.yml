@@ -28,7 +28,9 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Build project
-        run: just build
+        run: |
+          export BASE_URL="/RFCs"
+          just build
 
       - name: Check for changes
         run: |
