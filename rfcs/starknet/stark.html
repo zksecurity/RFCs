@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Starknet STARK Verifier</title>
+    <script src="https://www.w3.org/Tools/respec/respec-w3c" class="remove" defer></script>
+    <!-- <script>
+      MathJax = {
+        tex: {
+          inlineMath: [ 
+            ['\\(', '\\)'], 
+          ],
+          displayMath: [ 
+            ['\\[', '\\]']
+          ],
+        }
+      };
+    </script> 
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script> -->
+
+    <!-- syntax highlighting -->
+    <script class='remove'>
+        async function loadRust() {
+            //this is the function you call in 'preProcess', to load the highlighter
+            const worker = await new Promise(resolve => {
+                require(["core/worker"], ({ worker }) => resolve(worker));
+            });
+            const action = "highlight-load-lang";
+            const langURL =
+                "https://gistcdn.githack.com/mimoo/a9e28fc565dddb369477e8bd34e6a1ae/raw/d8a7057fe9c7140f7ef5972b333716d9933fa29b/hljs-rust.js";
+            const propName = "hljsDefineRust"; // This funtion is defined in the highlighter being loaded
+            const lang = "language-rust"; // this is the class you use to identify the language
+            worker.postMessage({ action, langURL, propName, lang });
+            return new Promise(resolve => {
+                worker.addEventListener("message", function listener({ data }) {
+                    const { action: responseAction, lang: responseLang } = data;
+                    if (responseAction === action && responseLang === lang) {
+                        worker.removeEventListener("message", listener);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        async function loadPython() {
+            const worker = await new Promise(resolve => {
+                require(["core/worker"], ({ worker }) => resolve(worker));
+            });
+            const action = "highlight-load-lang";
+            const langURL =
+                "https://gistcdn.githack.com/mimoo/fd9652b0c0d64bfc9f8cae69c72030b1/raw/2315322f87ba81c92c22477a05da6c4181f02df2/respec-py.js"; // URL to Python highlighter
+            const propName = "hljsDefinePython"; // Adjust this if needed
+            const lang = "language-py";
+            worker.postMessage({ action, langURL, propName, lang });
+            return new Promise(resolve => {
+                worker.addEventListener("message", function listener({ data }) {
+                    if (data.action === action && data.lang === lang) {
+                        worker.removeEventListener("message", listener);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        var respecConfig = {
+            preProcess: [loadRust, loadPython],
+            specStatus: "unofficial",
+            latestVersion: null,
+            license: "cc0",
+            editors: [
+                {
+                    name: "David Wong",
+                    url: "https://www.zksecurity.xyz",
+                },
+            ],
+            github: "zksecurity/RFCs",
+            shortName: "starknet-fri",
+        };
+    </script>
+
+</head>
+
+<body>
+    <section id="abstract">
+        <p>TKTK</p>
+    </section>
+    <section id="sotd">
+        <p>none</p>
+    </section>
+    <section>
+<h2>Overview</h2>
+<p>In this section we give an overview of the STARK protocol.</p>
+<aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
+
+<section>
+<h3>AIR Arithmetization</h3>
+<p>TKTK</p>
+</section>
+<section>
+<h3>Interactive Arithemtization</h3>
+<p>TKTK</p>
+</section>
+<section>
+<h3>STARK</h3>
+<p>TKTK</p>
+</section>
+</section>
+<section>
+<h2>Constants</h2>
+<p>TKTK</p>
+</section>
+<section>
+<h2>Dependencies</h2>
+<section>
+<h3>Hash function</h3>
+<ul>
+<li>poseidon with hades permutation (https://docs.orochi.network/poseidon-hash/poseidon-permutation-design/hades-based-design.html ?)</li>
+</ul>
+</section>
+<section>
+<h3>Channel</h3>
+<p>See the <a href="channel.html">Channel specification</a>.</p>
+</section>
+<section>
+<h3>FRI</h3>
+<p>See the <a href="fri.html">FRI specification</a>.</p>
+<p>Specifically, we expose the following functions:</p>
+<ul>
+<li><code>fri_commit</code></li>
+<li><code>fri_verify_initial</code></li>
+<li><code>fri_verify_step</code></li>
+<li><code>fri_verify_final</code></li>
+</ul>
+<p>as well as the two objects <code>FriVerificationStateConstant, FriVerificationStateVariable</code> defined in that specification.</p>
+</section>
+</section>
+<section>
+<h2>Configuration</h2>
+<pre><code class="language-rust">struct StarkConfig {
+    traces: TracesConfig,
+    composition: TableCommitmentConfig,
+    fri: FriConfig,
+    proof_of_work: ProofOfWorkConfig,
+    // Log2 of the trace domain size.
+    log_trace_domain_size: felt252,
+    // Number of queries to the last component, FRI.
+    n_queries: felt252,
+    // Log2 of the number of cosets composing the evaluation domain, where the coset size is the
+    // trace length.
+    log_n_cosets: felt252,
+    // Number of layers that use a verifier friendly hash in each commitment.
+    n_verifier_friendly_commitment_layers: felt252,
+}
+</code></pre>
+</section>
+<section>
+<h2>Main STARK functions / Buiding blocks</h2>
+<pre><code class="language-rust">struct StarkProof {
+    config: StarkConfig,
+    public_input: PublicInput,
+    unsent_commitment: StarkUnsentCommitment,
+    witness: StarkWitness,
+}
+
+struct StarkUnsentCommitment {
+    traces: TracesUnsentCommitment,
+    composition: felt252,
+    // n_oods_values elements. The i-th value is the evaluation of the i-th mask item polynomial at
+    // the OODS point, where the mask item polynomial is the interpolation polynomial of the
+    // corresponding column shifted by the corresponding row_offset.
+    oods_values: Span&lt;felt252&gt;,
+    fri: FriUnsentCommitment,
+    proof_of_work: ProofOfWorkUnsentCommitment,
+}
+</code></pre>
+<section>
+<h3>Domain</h3>
+<p>TODO: StarkDomainsImpl::new() </p>
+</section>
+<section>
+<h3>STARK commit</h3>
+<ol>
+<li>Absorb the original table with the channel.</li>
+<li>Sample the interaction challenges (e.g. z and alpha for the memory check argument (different alpha called memory_alpha to distinguish it from the alpha used to aggregate the different constraints into the composition polynomial)).</li>
+<li>Absorb the interaction table with the channel.</li>
+<li>Sample the alpha challenge ("composition_alpha") to aggregate all the constraint quotient polynomials (caches the powers of alpha into "traces_coefficients").</li>
+<li>Absorb the composition columns (the <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>h</mi><mi>i</mi></msub></mrow></math> in <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mo>&#x02211;</mo><mi>i</mi></msub><msub><mi>h</mi><mi>i</mi></msub><msup><mi>x</mi><mi>i</mi></msup></mrow></math>) with the channel.</li>
+<li>Sample the oods point (<code>interaction_after_composition</code>).</li>
+<li>Absorb all evaluations with the channel.</li>
+<li>Verify that the composition polynomial is correct by checking that its evaluation at the oods point is correct using some of the evaluations <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mo>&#x02211;</mo><mi>j</mi></msub><msub><mi>C</mi><mi>j</mi></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mo>&#x02211;</mo><mi>i</mi></msub><msub><mi>h</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo><mi>&#x000D7;</mi><msup><mtext>oods_point</mtext><mi>i</mi></msup></mrow></math> (where the left hand side will need evaluations of the trace polynomials (called maks values) and the right hand side will need evaluations of the composition column polynomials, everything is in that oods vector)</li>
+<li>Sample the oods_alpha challenge with the channel.</li>
+<li>Call <code>fri_commit</code></li>
+</ol>
+</section>
+<section>
+<h3>STARK verify (TODO: consolidate with above)</h3>
+<p>in <code>src/stark/stark_verify.cairo</code>:</p>
+<p>stark_verify takes these inputs:</p>
+<ul>
+<li>queries (array of FE)</li>
+<li>commitment</li>
+<li>witness</li>
+<li>stark_domains</li>
+</ul>
+<p>algorithm:</p>
+<ol>
+<li>traces_decommit()</li>
+<li>table_decommit() (different depending on layout)</li>
+<li>points = queries_to_points(queries, stark_domains)</li>
+<li>eval_oods_boundary_poly_at_points()</li>
+<li>fri_verify()</li>
+</ol>
+<p>actually, this is wrapped into StarKProofImpl::verify:</p>
+<ol>
+<li>cfg.validate(security_bits)</li>
+<li>cfg.public_input.validate(stark_domains)</li>
+<li>digest = get_public_input_hash(public_input) &lt;-- what is the public input exactly? (should be program + inputs (+outputs?))</li>
+<li>channel = ChannelImpl::new(digest) &lt;-- statement is a digest of the public_input</li>
+<li>stark_commitment = stark_commit()</li>
+<li>queries = generate_queries()</li>
+<li>stark_verify()</li>
+</ol>
+</section>
+</section>
+<section>
+<h2>Full Protocol</h2>
+<p>The protocol is split into 3 core functions:</p>
+<ul>
+<li><code>verify_initial</code> as defined below.</li>
+<li><code>verify_step</code> is a wrapper around <code>fri_verify_step</code> (see the <a href="#fri">FRI</a> section).</li>
+<li><code>verify_final</code> is a wrapper around <code>fri_verify_final</code> (see the <a href="#fri">FRI</a> section).</li>
+</ul>
+<p>One can successively call them in the following order to verify a proof:</p>
+<ol>
+<li>Call <code>verify_initial</code> on the proof and return:</li>
+<li>the FriVerificationStateConstant object</li>
+<li>the FriVerificationStateVariable object</li>
+<li>the last_layer_coefficients</li>
+<li>the security bits &lt;-- TODO: remove this?</li>
+<li>Call verify_step in a loop on each layer of the proof (<code>n_layers</code> of them according to the StateConstant returned) and pass the FriVerificationStateVariable in between each calls</li>
+<li>Call verify_final on the StateConstant and StateVariable objects</li>
+<li>Enforce that the the StateVariable's iter field is <code>n_layers + 1</code></li>
+<li>Return the security bits. (TODO: do we need this)</li>
+</ol>
+<p>The verify initial function is defined as:</p>
+<ol>
+<li>Validate the configuration and return the security_bits (TODO: how is security bits calculated).</li>
+<li>Produce a stark domain object based on the configuration log_trace_domain_size and log_n_coset (TODO:).</li>
+<li>Validate the public input (TODO: specify an external function for that?).</li>
+<li>Compute the initial digest as <code>get_public_input_hash(public_input, cfg.n_verifier_friendly_commitment_layers, settings)</code> (TODO: define external function for that).</li>
+<li>Initialize the channel using the digest as defined in the <a href="#channel">Channel</a> section.</li>
+<li>Call stark commit as defined in the <a href="#stark-commit">STARK commit</a> section.</li>
+<li>Call fri_commit as defined in the <a href="#fri">FRI</a> section.</li>
+<li>Call STARK verify as defined in the <a href="#stark-verify">STARK verify</a> section.</li>
+</ol>
+</section>
+</body>
+
+</html>

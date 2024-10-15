@@ -152,7 +152,7 @@ assert find_gen2(3)^8 == 1
     # at this point g and h are still around the same degree of p
     # we need to replace x^2 by x for FRI to (as we want to halve the degrees!)
     if remove_square:
-        g = g.parent(g.list()[::2]) # &lt;-- (using python's &lt;!--CODE_BLOCK_3--&gt; syntax)
+        g = g.parent(g.list()[::2]) # &lt;-- (using python's &lt;!--CODE_BLOCK_22--&gt; syntax)
         h = h.parent(h.list()[::2])
         assert g.degree() == h.degree() == p.degree() // 2
         assert p(7) == g(7^2) + 7 * h(7^2)
@@ -705,10 +705,11 @@ struct FriVerificationStateVariable {
 <aside note="warning">It is the responsibility of the wrapping protocol to ensure that these three functions are called sequentially, enough times, and with inputs that match the output of previous calls.</aside>
 
 <p>We give more detail to each function below.</p>
-<p><strong><code>fri_commit(prologue, cfg)</code></strong>.</p>
+<p><strong><code>fri_commit(channel, cfg)</code></strong>.</p>
 <ol>
-<li>Initialize the channel with a prologue (See the <a href="#channel">Channel</a> section). A prologue contains any context relevant to this proof.</li>
+<li>Take a channel with a prologue (See the <a href="#channel">Channel</a> section). A prologue contains any context relevant to this proof.</li>
 <li>Produce the FRI commits according to the <a href="#commit-phase">Commit Phase</a> section.</li>
+<li>Produce the proof of work according to the <a href="#proof-of-work">Proof of Work</a> section.</li>
 <li>Generate <code>n_queries</code> queries in the <code>eval_domain_size</code> according to the <a href="#generating-the-first-queries">Generating Queries</a> section.</li>
 <li>Convert the queries to evaluation points following the <a href="#converting-a-query-to-an-evaluation-point">Converting A Query To An Evaluation Point</a> section, producing <code>points</code>.</li>
 <li>Evaluate the first layer at the queried <code>points</code> using the external dependency (see <a href="#external-dependencies">External Dependencies</a> section), producing <code>values</code>.</li>

@@ -741,14 +741,15 @@ struct FriVerificationStateVariable {
 
 We give more detail to each function below.
 
-**`fri_commit(prologue, cfg)`**.
+**`fri_commit(channel, cfg)`**.
 
-1. Initialize the channel with a prologue (See the [Channel](#channel) section). A prologue contains any context relevant to this proof.
+1. Take a channel with a prologue (See the [Channel](#channel) section). A prologue contains any context relevant to this proof.
 1. Produce the FRI commits according to the [Commit Phase](#commit-phase) section.
-1. Generate `n_queries` queries in the `eval_domain_size` according to the [Generating Queries](#generating-the-first-queries) section.
-1. Convert the queries to evaluation points following the [Converting A Query To An Evaluation Point](#converting-a-query-to-an-evaluation-point) section, producing `points`.
-1. Evaluate the first layer at the queried `points` using the external dependency (see [External Dependencies](#external-dependencies) section), producing `values`.
-1. Produce the fri_decommitment as `FriDecommitment { values, points }`.
+2. Produce the proof of work according to the [Proof of Work](#proof-of-work) section.
+3. Generate `n_queries` queries in the `eval_domain_size` according to the [Generating Queries](#generating-the-first-queries) section.
+4. Convert the queries to evaluation points following the [Converting A Query To An Evaluation Point](#converting-a-query-to-an-evaluation-point) section, producing `points`.
+5. Evaluate the first layer at the queried `points` using the external dependency (see [External Dependencies](#external-dependencies) section), producing `values`.
+6. Produce the fri_decommitment as `FriDecommitment { values, points }`.
 
 **`fri_verify_initial(queries, fri_commitment, decommitment)`**.
 
