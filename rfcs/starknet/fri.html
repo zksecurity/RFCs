@@ -356,6 +356,10 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <p>TODO: why the alternate use of hash functions?</p>
 </section>
 <section>
+<h3>Channel</h3>
+<p>See the <a href="channel.html">Channel</a> specification for more details.</p>
+</section>
+<section>
 <h3>Evaluation of the first FRI layer</h3>
 <p>As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub></mrow></math>. This is abstracted in this specification as the function <code>eval_oods_polynomial</code> which acts as an oracle from FRI's perspective.</p>
 <p>TODO: not a very satisfying explanation</p>
@@ -513,10 +517,6 @@ struct TableCommitmentConfig {
 </section>
 </section>
 <section>
-<h2>Channel</h2>
-<p>we should specify this primitive</p>
-</section>
-<section>
 <h2>Protocol</h2>
 <p>The FRI protocol is split into two phases:</p>
 <ol>
@@ -548,35 +548,14 @@ struct VectorCommitmentConfig {
 </code></pre>
 <p>We process it in the following way:</p>
 <ol>
-<li>Enforce that the first layer has a step size of 0 (<code>cfg.fri_step_sizes[0] == 0</code>).</li>
+<li>Enforce that the first layer has a step size of 0 (<code>cfg.fri_step_sizes[0] == 0</code>). (Note that this is mostly to make sure that the prover is following the protocol correctly, as the second layer is never skipped in this standard.)</li>
+<li>Go through each commitment in order in the <code>inner_layers</code> field and perform the following:</li>
+<li>Absorb the commitment using the channel.</li>
+<li>Produce a random challenge.</li>
+<li>Absorb the <code>last_layer_coefficients</code> with the channel.</li>
+<li>Check that the last layer's degree is correct (according to the configuration <code>log_last_layer_degree_bound</code>, see the <a href="#configuration">Configuration section</a>): <code>2^cfg.log_last_layer_degree_bound == len(unsent_commitment.last_layer_coefficients)</code>.</li>
+<li>return all the random challenges.</li>
 </ol>
-<p>TODO: write the following code in a more readable way</p>
-<pre><code class="language-py"># TODO: step_sizes is ignored! Shouldn't we check that the layer cfg are properly following the step sizes?
-def fri_commit_rounds(channel, n_layers, configs, unsent_commitments, step_sizes):
-    commitments = []
-    eval_points = []
-    # TODO: we don't check that n_layers matches the length of these arrays!
-    for unsent_commitment, cfg in zip(unsent_commitments, configs):
-        commit = table_commit(channel, unsent_commitment, cfg) # absorbs the commitment # TODO: where is each cfg checked?
-        commitments.append(commit)
-        eval_points.append(channel.random_felt_to_prover())
-
-def fri_commit(channel, unsent_commitment, cfg):
-    assert cfg.fri_step_sizes[0] == 0
-
-    # why n_layers - 1 ?
-    commitments, eval_points = fri_commit_rounds(channel, cfg.n_layers-1, cfg.inner_layers, unsent_commitment.inner_layers, cfg.fri_step_sizes)
-
-    # absorb last layer
-    channel.read_felt_vector_from_prover(unsent_commitment.last_layer_coefficients)
-
-    # check that the last layer matches the config
-    assert pow(2, cfg.log_last_layer_degree_bound) == len(unsent_commitment.last_layer_coefficients)
-
-    return FriCommitment(cfg, inner_layers=commitments, eval_points, last_layer_coefficients=unsent_commitment.last_layer_coefficients)
-</code></pre>
-<p>The first round has a step size of 1, every other round has a step in <code>[1, MAX_FRI_STEP=4]</code>.</p>
-<p>TODO: explain why, I think this is because you don't want to have to produce too many evaluations for the first layer (which is  expensive in the <a href="stark.html">STARK protocol</a>).</p>
 </section>
 <section>
 <h3>Query Phase</h3>
