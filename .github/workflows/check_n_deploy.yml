@@ -33,6 +33,7 @@ jobs:
           BASE_URL: "/RFCs"
         run: |
           just setup
+          rm .gitignore # for the RFC directory
           just deploy
 
       - name: Deploy
