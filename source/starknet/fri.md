@@ -272,29 +272,31 @@ $$
 p_{i+1}(x) = 2(g_{i}(x) + \zeta_{i} \cdot 3^{-1} \cdot h_{i}(x)) 
 $$
 
-This shouldn't impact the protocol as we are just scaling with constants, but the verifier has to modify their queries slightly by not dividing by 2:
+This means that the verifier has to modify their queries slightly by not dividing by 2:
 
 $$
 p_{i+1}(v^2) = p_{i}(v) + p_{i}(-v) + \zeta_{i} g \cdot \frac{p_{i}(v) - p_{i}(-v)}{v}
 $$
 
----
-
-<aside class="warning">Actually the following is wrong. I'm still not sure I get it.</aside>
-
-The second difference is that while the evaluations of the first layer $p_0$ happen in a coset, further evaluations happen in the original evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the verifier removes the multiplication with the fixed element $g$ (as an evaluated point $v$ can be written $g \cdot v'$ for $v'$ in our original domain):
+The second difference is that while the evaluations of the first layer $p_0$ happen in a coset, further evaluations happen in the original (blown up) evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the prover defines the first reduced polynomial as:
 
 $$
-p_{1}(v^2) = p_{0}(v) + p_{0}(-v) + \zeta_{0} \cdot g \cdot \frac{p_{0}(v) - p_{0}(-v)}{v}
+p_{1}(x) = 2(g_{0}(9x^2) + \zeta_0 \frac{h_{0}(9x^2)}{x})
 $$
 
-On their side, the prover has to use the challenge $\zeta_{0} / g$ instead of $\zeta_{0}$ when folding the polynomial:
+Notice that the prover has also divided by $x$ instead of $3x$. This is a minor change that helps with how the verifier code is structured.
+
+This means that the verifier computes the queries on $p_1{x}$ at points on the original subgroup. So the queries of the first layer are produced using $v' = v/3$ (assuming no skipped layers).
 
 $$
-p_{1}(x) = g_{0}(x^2) + \frac{\zeta_{0}}{g} \cdot h_{0}(x^2)
+p_1((v'^2) = p_0(v) + p_0(-v) + \zeta_0 \cdot \frac{p_0(v) - p_0(-v)}{v'}
 $$
 
-Then both side compute the next layer's queries for $p_1$ as $(v/g)^2$ (assuming no skipped layers, again). After that, everything happens as normal (except that now the prover uses the original evaluation domain instead of a coset to evaluate and commit to the layer polynomials).
+Note: we assume no skipped layers.
+
+TODO: the first layer has an enforced step_size of 0 right?
+
+After that, everything happens as normal (except that now the prover uses the original evaluation domain instead of a coset to evaluate and commit to the layer polynomials).
 
 Note that these changes can easily be generalized to work when layers are skipped.
 
@@ -537,13 +539,55 @@ it seems like only the first round has a step size of 1, every other round has a
 
 TODO: is first round really forced to have a step size of 1??
 
+## TODO: Channel
+
+we should specify this primitive
+
 ## Queries
 
-### How queries are generated
+### Generating queries
 
-TKTK
+FRI queries are generated once, and then refined through each reduction of the FRI protocol.
 
-### Queries verification
+The generation of each FRI query goes through the same process:
+
+* sample a random challenge from the channel
+* truncate the challenge to obtain the lower 128-bit chunk
+* reduce it modulo the size of the evaluation domain
+
+Finally, when all FRI queries have been generated, they are sorted in ascending order.
+
+### Verify a layer's queries
+
+TODO: refer to the section on the first layer evaluation stuff (external dependency)
+
+Besides the first layer, each layer verification of a query happens by simply decommitng a layer's queries.
+
+```rust
+table_decommit(
+        commitment,
+        verify_indices.span(),
+        TableDecommitment { values: verify_y_values.span() },
+        layer_witness.table_witness,
+        settings,
+    );
+```
+
+TODO: link to section on merkle tree
+
+### Computing the next layer's queries
+
+Each reduction will produce queries to the next layer, which will expect specific evaluations.
+
+The next queries are derived as:
+
+* index: index / coset_size
+* point: point^2
+* value: FRI formula below
+
+#### FRI formula
+
+The next evaluations expected at the queried layers are derived as:
 
 Queries between layers verify that the next layer $p_{i+j}$ is computed correctly based on the currently layer $p_{i}$.
 The next layer is either the direct next layer $p_{i+1}$ or a layer further away if the configuration allows layers to be skipped.
@@ -603,70 +647,75 @@ TODO: reconcile with constants used for elements and inverses chosen in subgroup
 
 ## Full (Broken Up) Protocol
 
-throughout the flow it seems like a context object is passed (and mutated?):
+The FRI flow is split into three main functions. The reason is that verification of FRI proofs are computationally intensive, and programs might want to verify a FRI proof in multiple calls (for example, if calls have a cost limit). The three main functions are:
+
+* `fri_verify_initial` which returns the initial set of queries.
+* `fri_verify_step` which takes a set of queries and returns another set of queries.
+* `fri_verify_final` which takes the final set of queries and the last layer coefficients and returns the final result.
+
+<aside note="warning">It is the responsibility of the wrapping protocol to ensure that these three functions are called sequentially, enough times, and with inputs that match the output of previous calls.</aside>
+
+We give more detail to each function below.
+
+**`fri_verify_initial(queries, fri_commitment, decommitment)`**.
+
+* enforce that the number of queries matches the number of values to decommit
+* enforce that last layer has the right number of coefficients (TODO: how?)
+* compute the first layer of queries `gather_first_layer_queries` (TODO: how?) <-- this only happens for the first layer
+* return
 
 ```rust
-#[derive(Drop, Serde)]
-struct FriVerificationStateConstant {
-    n_layers: u32,
-    commitment: Span<TableCommitment>,
-    eval_points: Span<felt252>,
-    step_sizes: Span<felt252>,
-    last_layer_coefficients_hash: felt252,
+    (
+        FriVerificationStateConstant {
+            n_layers: (commitment.config.n_layers - 1).try_into().unwrap(),
+            commitment: commitment.inner_layers,
+            eval_points: commitment.eval_points,
+            step_sizes: commitment
+                .config
+                .fri_step_sizes
+                .slice(1, commitment.config.fri_step_sizes.len() - 1),
+            last_layer_coefficients_hash: hash_array(commitment.last_layer_coefficients),
+        },
+        FriVerificationStateVariable { iter: 0, queries: fri_queries.span(), }
+    )
 }
 ```
 
-the three main functions are in `stark.cairo` and can be called successively, or called in a single call using the `verify()` function:
+**`fri_verify_step(stateConstant, stateVariable, witness, settings)`**.
 
-* stark.cairo
-  * verify_initial -> this should return the initial set of queries
-    * ...
-    * stark_commit.cairo:stark_commit
-      * ...
-      * fri_commit
-      * proof_of_work_commit
-    * generate_queries
-    * stark_verify.cairo:stark_verify
-      * ...
-      * fri.cairo:fri_verify_initial
-        * gather_first_layer_queries
+* enforce that `stateVariable.iter <= stateConstant.n_layers`
+* compute the next layer queries (TODO: link to section on that)
+* verify the queries
+* increment the `iter` counter
+* return the next queries and the counter
 
-  * verify_step -> this should tkae a set of queries and return another set of queries
-    * fri_verify_step
-      * fri_verify_layer_step
-        * compute_next_layer
-        * table_decommit
+**`fri_verify_final(stateConstant, stateVariable, last_layer_coefficients)`**.
 
-  * verify_final(stateConstant, stateVariable, last_layer_coefficients)
-    * fri.cairo:fri_verify_final
-      * verify_last_layer
+* enforce that the counter has reached the last layer from the constants (`iter == n_layers`)
+* enforce that the last_layer_coefficient matches the hash contained in the state (TODO: only relevant if we created that hash in the first function)
+* 
 
-> WARNING: these functions only make sense when they are called sequentially with the right inputs! as such they should be used in a wrapper that keeps track of what the statement being proven is and what set of query it is associated to (otherwise you could just make up your queries)
+```rust
+fn fri_verify_final(
+    stateConstant: FriVerificationStateConstant,
+    stateVariable: FriVerificationStateVariable,
+    last_layer_coefficients: Span<felt252>,
+) -> (FriVerificationStateConstant, FriVerificationStateVariable) {
+    assert(stateVariable.iter == stateConstant.n_layers, 'Fri final called at wrong time');
+    assert(
+        hash_array(last_layer_coefficients) == stateConstant.last_layer_coefficients_hash,
+        'Invalid last_layer_coefficients'
+    );
 
-initial (contained in verify_initial in the stark implementation):
+    verify_last_layer(stateVariable.queries, last_layer_coefficients);
 
-1. start_commitment = stark_commit()
-   1. this essentially contains the stark protocol (the start) and then...
-   2. sample the `oods_alpha`, also called `interaction_after_oods` from the channel
-   3. fri_commitment = fri_commit(channel, unsent_commitment.fri, cfg.fri) (TODO: where is cfg.fri validated?)
-      1. assert cfg.fri_step_sizes[0] == 0
-      2. commitments, eval_points = fri_commit_rounds()
-         1. ?
-      3. absorb the `unsent_commitment.last_layer_coefficients` in the channel
-      4. check that `cfg.log_last_layer_degree_bound` is correctly set: `pow(2, cfg.log_last_layer_degree_bound) == len(coefficients)`
-   4. proof_of_work_commit(channel, unsent_commitment.proof_of_work, cfg.proof_of_work)
-2. last_layer_coefficients = stark_commitment.fri.last_layer_coefficients
-3. queries = generate_queries(channel, cfg.n_queries, stark_domains.eval_domain_size)
-4. con, var = stark_verify()
-5. return con, var, last_layer_coefficients
+    (
+        stateConstant,
+        FriVerificationStateVariable { iter: stateVariable.iter + 1, queries: array![].span(), }
+    )
+}
+```
 
-step:
-
-1. this produces the reduction between two layers (potentially including skipped layers, according to the configuration for that specific folding/reduction).
-
-final:
-
-1. the evaluations of the final layer, which is sent in clear by the prover.
 
 ## Test Vectors
 

@@ -320,19 +320,19 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <p>The first difference in this specification is that, assuming no skipped layers, the folded polynomial is multiplied by 2:</p>
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mn>2</mn><mo stretchy="false">&#x00028;</mo><msub><mi>g</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mrow><mi>i</mi></mrow></msub><mi>&#x000B7;</mi><msup><mn>3</mn><mrow><mo>&#x02212;</mo><mn>1</mn></mrow></msup><mi>&#x000B7;</mi><msub><mi>h</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo stretchy="false">&#x00029;</mo></mrow></math>
 
-<p>This shouldn't impact the protocol as we are just scaling with constants, but the verifier has to modify their queries slightly by not dividing by 2:</p>
+<p>This means that the verifier has to modify their queries slightly by not dividing by 2:</p>
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mrow><mi>i</mi></mrow></msub><mi>g</mi><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mi>v</mi></mrow></mfrac></mrow></math>
 
-<hr />
-<aside class="warning">Actually the following is wrong. I'm still not sure I get it.</aside>
+<p>The second difference is that while the evaluations of the first layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub></mrow></math> happen in a coset, further evaluations happen in the original (blown up) evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the prover defines the first reduced polynomial as:</p>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mn>2</mn><mo stretchy="false">&#x00028;</mo><msub><mi>g</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mn>9</mn><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mfrac><mrow><msub><mi>h</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mn>9</mn><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mi>x</mi></mrow></mfrac><mo stretchy="false">&#x00029;</mo></mrow></math>
 
-<p>The second difference is that while the evaluations of the first layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub></mrow></math> happen in a coset, further evaluations happen in the original evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the verifier removes the multiplication with the fixed element <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>g</mi></mrow></math> (as an evaluated point <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math> can be written <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>g</mi><mi>&#x000B7;</mi><msup><mi>v</mi><mi>&#x02032;</mi></msup></mrow></math> for <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>v</mi><mi>&#x02032;</mi></msup></mrow></math> in our original domain):</p>
-<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>p</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mrow><mn>0</mn></mrow></msub><mi>&#x000B7;</mi><mi>g</mi><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mi>v</mi></mrow></mfrac></mrow></math>
+<p>Notice that the prover has also divided by <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>x</mi></mrow></math> instead of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>3</mn><mi>x</mi></mrow></math>. This is a minor change that helps with how the verifier code is structured.</p>
+<p>This means that the verifier computes the queries on <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub><mrow><mi>x</mi></mrow></mrow></math> at points on the original subgroup. So the queries of the first layer are produced using <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>v</mi><mi>&#x02032;</mi></msup><mo>&#x0003D;</mo><mi>v</mi><mo>&#x0002F;</mo><mn>3</mn></mrow></math> (assuming no skipped layers).</p>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mrow><mi>&#x02032;</mi><mn>2</mn></mrow></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><msup><mi>v</mi><mi>&#x02032;</mi></msup></mrow></mfrac></mrow></math>
 
-<p>On their side, the prover has to use the challenge <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003B6;</mi><mrow><mn>0</mn></mrow></msub><mo>&#x0002F;</mo><mi>g</mi></mrow></math> instead of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003B6;</mi><mrow><mn>0</mn></mrow></msub></mrow></math> when folding the polynomial:</p>
-<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>g</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mfrac><mrow><msub><mi>&#x003B6;</mi><mrow><mn>0</mn></mrow></msub></mrow><mrow><mi>g</mi></mrow></mfrac><mi>&#x000B7;</mi><msub><mi>h</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math>
-
-<p>Then both side compute the next layer's queries for <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub></mrow></math> as <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo>&#x0002F;</mo><mi>g</mi><msup><mo stretchy="false">&#x00029;</mo><mn>2</mn></msup></mrow></math> (assuming no skipped layers, again). After that, everything happens as normal (except that now the prover uses the original evaluation domain instead of a coset to evaluate and commit to the layer polynomials).</p>
+<p>Note: we assume no skipped layers.</p>
+<p>TODO: the first layer has an enforced step_size of 0 right?</p>
+<p>After that, everything happens as normal (except that now the prover uses the original evaluation domain instead of a coset to evaluate and commit to the layer polynomials).</p>
 <p>Note that these changes can easily be generalized to work when layers are skipped.</p>
 </section>
 <section>
@@ -541,13 +541,48 @@ def fri_commit(channel, unsent_commitment, cfg):
 <p>TODO: is first round really forced to have a step size of 1??</p>
 </section>
 <section>
-<h2>Queries</h2>
-<section>
-<h3>How queries are generated</h3>
-<p>TKTK</p>
+<h2>TODO: Channel</h2>
+<p>we should specify this primitive</p>
 </section>
 <section>
-<h3>Queries verification</h3>
+<h2>Queries</h2>
+<section>
+<h3>Generating queries</h3>
+<p>FRI queries are generated once, and then refined through each reduction of the FRI protocol.</p>
+<p>The generation of each FRI query goes through the same process:</p>
+<ul>
+<li>sample a random challenge from the channel</li>
+<li>truncate the challenge to obtain the lower 128-bit chunk</li>
+<li>reduce it modulo the size of the evaluation domain</li>
+</ul>
+<p>Finally, when all FRI queries have been generated, they are sorted in ascending order.</p>
+</section>
+<section>
+<h3>Verify a layer's queries</h3>
+<p>TODO: refer to the section on the first layer evaluation stuff (external dependency)</p>
+<p>Besides the first layer, each layer verification of a query happens by simply decommitng a layer's queries.</p>
+<pre><code class="language-rust">table_decommit(
+        commitment,
+        verify_indices.span(),
+        TableDecommitment { values: verify_y_values.span() },
+        layer_witness.table_witness,
+        settings,
+    );
+</code></pre>
+<p>TODO: link to section on merkle tree</p>
+</section>
+<section>
+<h3>Computing the next layer's queries</h3>
+<p>Each reduction will produce queries to the next layer, which will expect specific evaluations.</p>
+<p>The next queries are derived as:</p>
+<ul>
+<li>index: index / coset_size</li>
+<li>point: point^2</li>
+<li>value: FRI formula below</li>
+</ul>
+<section>
+<h4>FRI formula</h4>
+<p>The next evaluations expected at the queried layers are derived as:</p>
 <p>Queries between layers verify that the next layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mi>j</mi></mrow></msub></mrow></math> is computed correctly based on the currently layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub></mrow></math>.
 The next layer is either the direct next layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub></mrow></math> or a layer further away if the configuration allows layers to be skipped.
 Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the <code>MAX_FRI_STEP</code> constant).</p>
@@ -599,89 +634,73 @@ Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the <c
 <p>TODO: reconcile with constants used for elements and inverses chosen in subgroups of order <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mi>i</mi></msup></mrow></math> (the <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C9;</mi></mrow></math>s)</p>
 </section>
 </section>
+</section>
 <section>
 <h2>Full (Broken Up) Protocol</h2>
-<p>throughout the flow it seems like a context object is passed (and mutated?):</p>
-<pre><code class="language-rust">#[derive(Drop, Serde)]
-struct FriVerificationStateConstant {
-    n_layers: u32,
-    commitment: Span&lt;TableCommitment&gt;,
-    eval_points: Span&lt;felt252&gt;,
-    step_sizes: Span&lt;felt252&gt;,
-    last_layer_coefficients_hash: felt252,
+<p>The FRI flow is split into three main functions. The reason is that verification of FRI proofs are computationally intensive, and programs might want to verify a FRI proof in multiple calls (for example, if calls have a cost limit). The three main functions are:</p>
+<ul>
+<li><code>fri_verify_initial</code> which returns the initial set of queries.</li>
+<li><code>fri_verify_step</code> which takes a set of queries and returns another set of queries.</li>
+<li><code>fri_verify_final</code> which takes the final set of queries and the last layer coefficients and returns the final result.</li>
+</ul>
+<aside note="warning">It is the responsibility of the wrapping protocol to ensure that these three functions are called sequentially, enough times, and with inputs that match the output of previous calls.</aside>
+
+<p>We give more detail to each function below.</p>
+<p><strong><code>fri_verify_initial(queries, fri_commitment, decommitment)</code></strong>.</p>
+<ul>
+<li>enforce that the number of queries matches the number of values to decommit</li>
+<li>enforce that last layer has the right number of coefficients (TODO: how?)</li>
+<li>compute the first layer of queries <code>gather_first_layer_queries</code> (TODO: how?) &lt;-- this only happens for the first layer</li>
+<li>return</li>
+</ul>
+<pre><code class="language-rust">    (
+        FriVerificationStateConstant {
+            n_layers: (commitment.config.n_layers - 1).try_into().unwrap(),
+            commitment: commitment.inner_layers,
+            eval_points: commitment.eval_points,
+            step_sizes: commitment
+                .config
+                .fri_step_sizes
+                .slice(1, commitment.config.fri_step_sizes.len() - 1),
+            last_layer_coefficients_hash: hash_array(commitment.last_layer_coefficients),
+        },
+        FriVerificationStateVariable { iter: 0, queries: fri_queries.span(), }
+    )
 }
 </code></pre>
-<p>the three main functions are in <code>stark.cairo</code> and can be called successively, or called in a single call using the <code>verify()</code> function:</p>
+<p><strong><code>fri_verify_step(stateConstant, stateVariable, witness, settings)</code></strong>.</p>
 <ul>
-<li>stark.cairo</li>
-<li>
-<p>verify_initial -&gt; this should return the initial set of queries</p>
+<li>enforce that <code>stateVariable.iter &lt;= stateConstant.n_layers</code></li>
+<li>compute the next layer queries (TODO: link to section on that)</li>
+<li>verify the queries</li>
+<li>increment the <code>iter</code> counter</li>
+<li>return the next queries and the counter</li>
+</ul>
+<p><strong><code>fri_verify_final(stateConstant, stateVariable, last_layer_coefficients)</code></strong>.</p>
 <ul>
-<li>...</li>
-<li>stark_commit.cairo:stark_commit</li>
-<li>...</li>
-<li>fri_commit</li>
-<li>proof_of_work_commit</li>
-<li>generate_queries</li>
-<li>stark_verify.cairo:stark_verify</li>
-<li>...</li>
-<li>fri.cairo:fri_verify_initial<ul>
-<li>gather_first_layer_queries</li>
+<li>enforce that the counter has reached the last layer from the constants (<code>iter == n_layers</code>)</li>
+<li>enforce that the last_layer_coefficient matches the hash contained in the state (TODO: only relevant if we created that hash in the first function)</li>
+<li></li>
 </ul>
-</li>
-</ul>
-</li>
-<li>
-<p>verify_step -&gt; this should tkae a set of queries and return another set of queries</p>
-<ul>
-<li>fri_verify_step</li>
-<li>fri_verify_layer_step<ul>
-<li>compute_next_layer</li>
-<li>table_decommit</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p>verify_final(stateConstant, stateVariable, last_layer_coefficients)</p>
-<ul>
-<li>fri.cairo:fri_verify_final</li>
-<li>verify_last_layer</li>
-</ul>
-</li>
-</ul>
-<blockquote>
-<p>WARNING: these functions only make sense when they are called sequentially with the right inputs! as such they should be used in a wrapper that keeps track of what the statement being proven is and what set of query it is associated to (otherwise you could just make up your queries)</p>
-</blockquote>
-<p>initial (contained in verify_initial in the stark implementation):</p>
-<ol>
-<li>start_commitment = stark_commit()</li>
-<li>this essentially contains the stark protocol (the start) and then...</li>
-<li>sample the <code>oods_alpha</code>, also called <code>interaction_after_oods</code> from the channel</li>
-<li>fri_commitment = fri_commit(channel, unsent_commitment.fri, cfg.fri) (TODO: where is cfg.fri validated?)<ol>
-<li>assert cfg.fri_step_sizes[0] == 0</li>
-<li>commitments, eval_points = fri_commit_rounds()<ol>
-<li>?</li>
-</ol>
-</li>
-<li>absorb the <code>unsent_commitment.last_layer_coefficients</code> in the channel</li>
-<li>check that <code>cfg.log_last_layer_degree_bound</code> is correctly set: <code>pow(2, cfg.log_last_layer_degree_bound) == len(coefficients)</code></li>
-</ol>
-</li>
-<li>proof_of_work_commit(channel, unsent_commitment.proof_of_work, cfg.proof_of_work)</li>
-<li>last_layer_coefficients = stark_commitment.fri.last_layer_coefficients</li>
-<li>queries = generate_queries(channel, cfg.n_queries, stark_domains.eval_domain_size)</li>
-<li>con, var = stark_verify()</li>
-<li>return con, var, last_layer_coefficients</li>
-</ol>
-<p>step:</p>
-<ol>
-<li>this produces the reduction between two layers (potentially including skipped layers, according to the configuration for that specific folding/reduction).</li>
-</ol>
-<p>final:</p>
-<ol>
-<li>the evaluations of the final layer, which is sent in clear by the prover.</li>
-</ol>
+<pre><code class="language-rust">fn fri_verify_final(
+    stateConstant: FriVerificationStateConstant,
+    stateVariable: FriVerificationStateVariable,
+    last_layer_coefficients: Span&lt;felt252&gt;,
+) -&gt; (FriVerificationStateConstant, FriVerificationStateVariable) {
+    assert(stateVariable.iter == stateConstant.n_layers, 'Fri final called at wrong time');
+    assert(
+        hash_array(last_layer_coefficients) == stateConstant.last_layer_coefficients_hash,
+        'Invalid last_layer_coefficients'
+    );
+
+    verify_last_layer(stateVariable.queries, last_layer_coefficients);
+
+    (
+        stateConstant,
+        FriVerificationStateVariable { iter: stateVariable.iter + 1, queries: array![].span(), }
+    )
+}
+</code></pre>
 </section>
 <section>
 <h2>Test Vectors</h2>
