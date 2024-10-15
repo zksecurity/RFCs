@@ -19,18 +19,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get dependencies
+      - name: Get just
         uses: extractions/setup-just@v1
-      - uses: actions/setup-python@v5
+
+      - name: Get pip
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip" # caching pip dependencies
-      - run: pip install -r requirements.txt
 
       - name: Build project
         env:
           BASE_URL: "/RFCs"
         run: |
+          just setup
           just build
 
       - name: Deploy

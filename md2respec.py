@@ -5,6 +5,7 @@ import latex2mathml.converter
 import markdown
 import re
 from string import Template
+from pathlib import Path
 
 template_path = "template.html"
 
@@ -121,32 +122,6 @@ def html_to_respec(metadata, html_content):
     return template.substitute(metadata)
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input_path", help="markdown input file")
-    parser.add_argument("--output-path", default="spec.html", help="HTML output file")
-    parser.add_argument("--pure-html", action="store_true", help="Output pure HTML")
-    args = parser.parse_args()
-
-    # ensure that input path is a .md file
-    if not args.input_path.endswith(".md"):
-        raise ValueError("Input file must be a markdown file")
-
-    # ensure that output path is a.html file
-    if not args.output_path.endswith(".html"):
-        raise ValueError("Output file must be an HTML file")
-
-    # Example usage
-    config = {"section_headers": True}  # Enable section headers
-
-    metadata, html_output = convert_markdown_to_html(args.input_path, config)
-
-    if not args.pure_html:
-        html_output = html_to_respec(metadata, html_output)
-
-    print(html_output)
-
-
 class Latex:
     _single_dollar_re = re.compile(r"(?<!\$)\$(?!\$)(.*?)\$")
     _double_dollar_re = re.compile(r"\$\$(.*?)\$\$", re.DOTALL)
@@ -195,6 +170,71 @@ class Latex:
             text = text.replace(placeholder, code_block)
 
         return text
+
+
+def recursive_folder_conversion(input_dir, output_dir):
+    if not os.path.isdir(input_dir):
+        raise ValueError(
+            "Input path must be a directory when using the --recursive option"
+        )
+    if not os.path.isdir(output_dir):
+        raise ValueError(
+            "Output path must be a directory when using the --recursive option"
+        )
+
+    for md_file in Path(input_dir).rglob("*.md"):
+        input_path = str(md_file)
+
+        # preserve path
+        relative_path = os.path.relpath(md_file, input_dir)
+        output_path = os.path.join(
+            output_dir, os.path.splitext(relative_path)[0] + ".html"
+        )
+
+        # convert
+        config = {"section_headers": True}  # Enable section headers
+        metadata, html_output = convert_markdown_to_html(input_path, config)
+        html_output = html_to_respec(metadata, html_output)
+        with open(output_path, "w") as f:
+            f.write(html_output)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input_path", help="markdown input file")
+    parser.add_argument("--output-path", default="spec.html", help="HTML output file")
+    parser.add_argument("--pure-html", action="store_true", help="Output pure HTML")
+    parser.add_argument(
+        "--recursive",
+        action="store_true",
+        help="Convert all markdown files in a folder",
+    )
+    args = parser.parse_args()
+
+    if args.recursive:
+        if args.pure_html:
+            raise ValueError(
+                "Cannot use the --pure-html option with the --recursive option"
+            )
+        recursive_folder_conversion(args.input_path, args.output_path)
+        return
+
+    # ensure that input path is a .md file
+    if not args.input_path.endswith(".md"):
+        raise ValueError("Input file must be a markdown file")
+
+    # ensure that output path is a.html file
+    if not args.output_path.endswith(".html"):
+        raise ValueError("Output file must be an HTML file")
+
+    # convert
+    config = {"section_headers": True}  # Enable section headers
+    metadata, html_output = convert_markdown_to_html(args.input_path, config)
+
+    if not args.pure_html:
+        html_output = html_to_respec(metadata, html_output)
+
+    print(html_output)
 
 
 if __name__ == "__main__":
