@@ -6,9 +6,6 @@ setup:
 build:
     python md2respec.py --output-path rfcs/ --recursive ./source/
 
-deploy:
-    python m2respec.py --output-path . --recursive ./source/
-
 debug-build:
     python md2respec.py --pure-html source/starknet/fri.md
 
