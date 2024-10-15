@@ -3,6 +3,7 @@ setup:
     pip install -r requirements.txt
 
 build:
+    mkdir -p rfcs/starknet/
     python md2respec.py source/starknet/fri.md > rfcs/starknet/fri.html
     python md2respec.py source/starknet/channel.md > rfcs/starknet/channel.html
 
