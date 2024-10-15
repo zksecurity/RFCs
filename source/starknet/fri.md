@@ -1,6 +1,6 @@
 ---
 title: "Starknet FRI Verifier"
-abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximity (FRI)</strong> is a cryptographic protocol that allows a prover to prove to a verifier (in an interactive, or non-interactive fashion) that a hash-based commitment (e.g. a Merkle tree) of a vector of values represent the evaluations of a polynomial of some known degree. (That is, the vector committed is not just a bunch of uncorrelated values.) The algorithm is often referred to as a \"low degree\" test, as the degree of the underlying polynomial is expected to be much lower than the degree of the field the polynomial is defined over. Furthermore, the algorithm can also be used to prove the evaluation of a committed polynomial, an application that is often called FRI-PCS. We discuss both algorithms in this document, as well as how to batch multiple instances of the two algorithms.</p>
+abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximity (FRI)</strong> is a cryptographic protocol that allows a prover to prove to a verifier (in an interactive, or non-interactive fashion) that a hash-based commitment (e.g. a Merkle tree of evaluations) of a vector of values represent the evaluations of a polynomial of some known degree. (That is, the vector committed is not just a bunch of uncorrelated values.) The algorithm is often referred to as a \"low degree\" test, as the degree of the underlying polynomial is expected to be much lower than the degree of the field the polynomial is defined over. Furthermore, the algorithm can also be used to prove the evaluation of a committed polynomial, an application that is often called FRI-PCS. We discuss both algorithms in this document, as well as how to batch multiple instances of the two algorithms.</p>
 
 <p>For more information about the original construction, see <a href=\"https://eccc.weizmann.ac.il/report/2017/134/\">Fast Reed-Solomon Interactive Oracle Proofs of Proximity</a>. This document is about the specific instantiation of FRI and FRI-PCS as used by the StarkNet protocol.</p>
 
@@ -741,7 +741,7 @@ struct FriVerificationStateVariable {
 
 We give more detail to each function below.
 
-**`fri_commit(prologue, cfg)`
+**`fri_commit(prologue, cfg)`**.
 
 1. Initialize the channel with a prologue (See the [Channel](#channel) section). A prologue contains any context relevant to this proof.
 1. Produce the FRI commits according to the [Commit Phase](#commit-phase) section.
