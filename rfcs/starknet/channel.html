@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Starknet Channel</title>
+    <script src="https://www.w3.org/Tools/respec/respec-w3c" class="remove" defer></script>
+    <!-- <script>
+      MathJax = {
+        tex: {
+          inlineMath: [ 
+            ['\\(', '\\)'], 
+          ],
+          displayMath: [ 
+            ['\\[', '\\]']
+          ],
+        }
+      };
+    </script> 
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script> -->
+
+    <!-- syntax highlighting -->
+    <script class='remove'>
+        async function loadRust() {
+            //this is the function you call in 'preProcess', to load the highlighter
+            const worker = await new Promise(resolve => {
+                require(["core/worker"], ({ worker }) => resolve(worker));
+            });
+            const action = "highlight-load-lang";
+            const langURL =
+                "https://gistcdn.githack.com/mimoo/a9e28fc565dddb369477e8bd34e6a1ae/raw/d8a7057fe9c7140f7ef5972b333716d9933fa29b/hljs-rust.js";
+            const propName = "hljsDefineRust"; // This funtion is defined in the highlighter being loaded
+            const lang = "language-rust"; // this is the class you use to identify the language
+            worker.postMessage({ action, langURL, propName, lang });
+            return new Promise(resolve => {
+                worker.addEventListener("message", function listener({ data }) {
+                    const { action: responseAction, lang: responseLang } = data;
+                    if (responseAction === action && responseLang === lang) {
+                        worker.removeEventListener("message", listener);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        async function loadPython() {
+            const worker = await new Promise(resolve => {
+                require(["core/worker"], ({ worker }) => resolve(worker));
+            });
+            const action = "highlight-load-lang";
+            const langURL =
+                "https://gistcdn.githack.com/mimoo/fd9652b0c0d64bfc9f8cae69c72030b1/raw/2315322f87ba81c92c22477a05da6c4181f02df2/respec-py.js"; // URL to Python highlighter
+            const propName = "hljsDefinePython"; // Adjust this if needed
+            const lang = "language-py";
+            worker.postMessage({ action, langURL, propName, lang });
+            return new Promise(resolve => {
+                worker.addEventListener("message", function listener({ data }) {
+                    if (data.action === action && data.lang === lang) {
+                        worker.removeEventListener("message", listener);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        var respecConfig = {
+            preProcess: [loadRust, loadPython],
+            specStatus: "unofficial",
+            latestVersion: null,
+            license: "cc0",
+            editors: [
+                {
+                    name: "David Wong",
+                    url: "https://www.zksecurity.xyz",
+                },
+            ],
+            github: "zksecurity/RFCs",
+            shortName: "starknet-fri",
+        };
+    </script>
+
+</head>
+
+<body>
+    <section id="abstract">
+        <p>TKTK</p>
+    </section>
+    <section id="sotd">
+        <p>none</p>
+    </section>
+    <section>
+<h2>Overview</h2>
+<p>A channel is an object that mimics the communication channel between the prover and the verifier, and is used to abstract the <a href="">Fiat-Shamir transformation</a> used to make the protocol non-interactive (the verifier messages are replaced by sampling a hash function).</p>
+<p>A channel is initialized at the beginning of the protocol, and is instantiated with a hash function. It is implemented as a continuous hash that "absorbs" every prover messages and which output can be used to produce the verifier's challenges.</p>
+<p>A channel has two fields:</p>
+<ul>
+<li>A <strong>digest</strong>, which represents the current internal state.</li>
+<li>A <strong>counter</strong>, which helps produce different values when the channel is used repeatedly to sample verifier challenges.</li>
+</ul>
+<p>The channel has the following interface:</p>
+<p><strong><code>init(digest)</code></strong>. </p>
+<ul>
+<li>Initializes the channel with a digest, which is the prologue/context to the protocol. </li>
+<li>Set the counter to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>0</mn></mrow></math>.</li>
+</ul>
+<p><strong>message from prover to verifier</strong>.</p>
+<ul>
+<li>Resets the counter to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>0</mn></mrow></math>.</li>
+<li>Set the digest to <code>POSEIDON_hash(digest + 1 || value)</code>. (TODO: what if several values)</li>
+</ul>
+<p>TODO: explain why the +1</p>
+<p><strong>message from verifier to prover</strong>.</p>
+<ul>
+<li>Produce a random value as <code>hades_permutation(digest, counter, 2)</code>.</li>
+<li>Increment the counter.</li>
+</ul>
+<aside class="note">With the current design, two different protocols where one produces <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>n</mi></mrow></math> challenges and another that produces <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>m</mi></mrow></math> challenges will have the same "transcript" and thus will continue to produce the same challenges later on in the protocol. While there are no issues in this design in the context of Starknet, this might not always be secure when used in other protocols.</aside>
+</section>
+</body>
+
+</html>
