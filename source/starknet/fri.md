@@ -250,6 +250,8 @@ To prove that two polynomials $a$ and $b$ exist and are of degree at most $d$, a
 
 TODO: what if the different polynomials are of different degrees?
 
+TODO: we do not make use of aggregation here, the way the first layer polynomial is created is sort of transparent here, is it still worth having this section?
+
 ## Notable differences with vanilla FRI
 
 Besides obvious missing implementation details from the description above, the protocol is pretty much instantiated as is, except for a few changes to the folding and querying process.
@@ -304,7 +306,7 @@ After that, everything happens as normal (except that now the prover uses the or
 
 Note that these changes can easily be generalized to work when layers are skipped.
 
-## Dependencies
+## External Dependencies
 
 In this section we list all dependencies and the API this standard relies on.
 
@@ -371,7 +373,7 @@ The FRI protocol is globally parameterized according to the following variables 
 
 **`n_verifier_friendly_commitment_layers`**. The number of layers (starting from the bottom) that make use of the circuit-friendly hash.
 
-**`proof_of_work_n_bits`**. The number of bits required for the proof of work. This value should be between 20 and 50.
+**`proof_of_work_bits`**. The number of bits required for the proof of work. This value should be between 20 and 50.
 
 ### Commitment configuration
 
@@ -425,7 +427,7 @@ TODO: validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
 
 * the number of layers `n_layers` must be within the range `[2, MAX_FRI_LAYERS]` (see constants)
 * the `log_last_layer_degree_bound` must be less or equal to `MAX_LAST_LAYER_LOG_DEGREE_BOUND`
-* the first`fri_step_sizes[0]` must be 0
+* the first`fri_step_sizes[0]` must be 0 (TODO: explain why)
 * for every `fri_step_sizes[i]` check:
   * that the step `fri_step_sizes[i]` is within the range `[1, MAX_FRI_STEP]`
   * that the previous layer table commitment configuration `inner_Layers[i-1]` has
@@ -435,7 +437,6 @@ TODO: validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
 * the `log_expected_input_degree + log_n_cosets == log_input_size`
   * TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)
   * where `log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound`
-
 
 ## Commitments
 
@@ -524,6 +525,24 @@ struct VectorCommitmentConfig {
 
 The layer 0 polynomial is not part of the protocol, we assume that it comes from somewhere and that we can query evaluations of it in a coset $3 \cdot \omega_e$ where $\omega_e$ is the generator of the evaluation domain. In the [Starknet STARK protocol](stark.html) it represents a blown up evaluation domain, that is, an evaluation domain that is a larger power of 2 than the evaluation domain used in the protocol.
 
+A FRI proof looks like the following:
+
+```rust
+struct FriUnsentCommitment {
+    // Array of size n_layers - 1 containing unsent table commitments for each inner layer.
+    inner_layers: Span<felt252>,
+    // Array of size 2**log_last_layer_degree_bound containing coefficients for the last layer
+    // polynomial.
+    last_layer_coefficients: Span<felt252>,
+}
+```
+
+We process it in the following way:
+
+1. Enforce that the first layer has a step size of 0 (`cfg.fri_step_sizes[0] == 0`).
+
+TODO: write the following code in a more readable way
+
 ```py
 # TODO: step_sizes is ignored! Shouldn't we check that the layer cfg are properly following the step sizes?
 def fri_commit_rounds(channel, n_layers, configs, unsent_commitments, step_sizes):
@@ -564,6 +583,14 @@ Each FRI query is composed of the following fields:
 * `y_value`: the evaluation of the layer's polynomial at the queried point.
 * `x_inv_value`: the inverse of the point at which the layer's polynomial is evaluated. This value is derived from the `index` as explained in the next subsection.
 
+```rust
+struct FriLayerQuery {
+    index: felt252,
+    y_value: felt252,
+    x_inv_value: felt252,
+}
+```
+
 That is, we should have for each FRI query for the layer $i+1$ the following identity:
 
 $$
@@ -572,9 +599,9 @@ $$
 
 Or in terms of commitment, that the decommitment at path the path behind `index` is `y_value`.
 
-<aside class="note">This is not exactly correct. The Commitment section explains that index points to a point, whereas we need to point to the path in the Merkle tree commitment that gathers its associated points.
+<aside class="note">This is not exactly correct. The Commitment section explains that `index` points to a point, whereas we need to point to the path in the Merkle tree commitment that gathers its associated points. In addition, `y_value` only gives one evaluation, so the prover will need to witness associated evaluations surrounding the `y_value` as well (see Table Commitment section).</aside>
 
-#### Generating queries
+#### Generating The First Queries
 
 The generation of each FRI query goes through the same process:
 
@@ -586,21 +613,35 @@ Finally, when all FRI queries have been generated, they are sorted in ascending 
 
 TODO: this is important due to the decommit algorithm.
 
-#### Verify a layer's queries
+#### Converting A Query To An Evaluation Point
+
+A query $q$ (a value within $[0, 2^{n_e}]$ for $n_e$ the log-size of the blown-up evaluation domain) can be converted to an evaluation point in the following way.
+
+First, compute the bit-reversed exponent:
+
+$$
+q' = \text{bit_reverse}(q \cdot 2^{64 - n_e})
+$$
+
+Then compute the element of the blown-up evaluation domain in the coset (with $\omega_e$ the generator of the evaluation domain):
+
+$$
+3 \cdot \omega_e^{q'}
+$$
+
+TODO: explain why not just do $3 \cdot \omega_e{q}$
+
+#### Verify A Layer's Query
 
 TODO: refer to the section on the first layer evaluation stuff (external dependency)
 
 Besides the first and last layers, each layer verification of a query happens by simply decommiting a layer's queries.
 
 ```rust
-table_decommit(
-        commitment,
-        verify_indices.span(),
-        TableDecommitment { values: verify_y_values.span() },
-        layer_witness.table_witness,
-        settings,
-    );
+table_decommit(commitment, paths, leaves_values, witness, settings);
 ```
+
+TODO: As explained in the section on Merkle Tree Decommitment, witness leaves values have to be given as well.
 
 TODO: link to section on merkle tree
 
@@ -611,8 +652,12 @@ Each reduction will produce queries to the next layer, which will expect specifi
 The next queries are derived as:
 
 * index: index / coset_size
-* point: point^2
+* point: point^coset_size
 * value: FRI formula below
+
+where coset_size is 2, 4, 8, or 16 depending on the layer (but always 2 for the first layer).
+
+TODO: explain the relation between coset_size and the step size. coset_size = 2^step_size
 
 ##### FRI formula
 
@@ -678,47 +723,11 @@ TODO: reconcile with constants used for elements and inverses chosen in subgroup
 
 In order to increase the cost of attacks on the protocol, a proof of work is added at the end of the commitment phase.
 
-Given a 32-bit hash `digest` and a difficulty target of `n_bits`, verify the 64-bit proof of work `nonce` by doing the following:
+Given a 32-bit hash `digest` and a difficulty target of `proof_of_work_bits`, verify the 64-bit proof of work `nonce` by doing the following:
 
-1. Produce a `init_hash = hash_n_bytes(0x0123456789abcded || digest || n_bits)` (TODO: endianness)
+1. Produce a `init_hash = hash_n_bytes(0x0123456789abcded || digest || proof_of_work_bits)` (TODO: endianness)
 1. Produce a `hash = hash_n_bytes(init_hash || nonce)` (TODO: endianness)
-1. Enforce that the 128-bit high bits of `hash` start with `128 - n_bits` zeros. (TODO: where is `n_bits` enforced to not be more than 128? I can't remember)
-
-```rust
-fn proof_of_work_commit(
-    ref channel: Channel, unsent_commitment: ProofOfWorkUnsentCommitment, config: ProofOfWorkConfig
-) {
-    verify_proof_of_work(channel.digest.into(), config.n_bits, unsent_commitment.nonce);
-    channel.read_uint64_from_prover(unsent_commitment.nonce);
-}
-
-fn verify_proof_of_work(digest: u256, n_bits: u8, nonce: u64) {
-    // Compute the initial hash.
-    // Hash(0x0123456789abcded || digest   || n_bits )
-    //      8 bytes            || 32 bytes || 1 byte
-    // Total of 0x29 = 41 bytes.
-
-    let mut init_hash_data = ArrayTrait::new(); // u8 with blake, u64 with keccak
-    init_hash_data.append_big_endian(MAGIC);
-    init_hash_data.append_big_endian(digest);
-    let init_hash = hash_n_bytes(init_hash_data, n_bits.into(), true).flip_endianness();
-
-    // Compute Hash(init_hash || nonce   )
-    //              32 bytes  || 8 bytes
-    // Total of 0x28 = 40 bytes.
-
-    let mut hash_data = ArrayTrait::new(); // u8 with blake, u64 with keccak
-    hash_data.append_big_endian(init_hash);
-    hash_data.append_big_endian(nonce);
-    let hash = hash_n_bytes(hash_data, 0, false).flip_endianness();
-
-    let work_limit = pow(2, 128 - n_bits.into());
-    assert(
-        Into::<u128, u256>::into(hash.high) < Into::<felt252, u256>::into(work_limit),
-        'proof of work failed'
-    )
-}
-```
+1. Enforce that the 128-bit high bits of `hash` start with `proof_of_work_bits` zeros (where `proof_of_work_bits` is enforced to be between 20 and 50 as discussed in the [General Configuration section](#general-configuration)).
 
 ### Full Protocol
 
@@ -727,7 +736,7 @@ The FRI flow is split into four main functions. The only reason for doing this i
 The four main functions are:
 
 1. `fri_commit`, which returns the commitment to every layers of the FRI proof.
-1. `fri_verify_initial`, which returns the initial set of queries.
+1. `fri_verify_initial`, which returns the initial set of queries to verify the first reduction (Which is special as explained in the [Notable Differences With Vanilla FRI](#notable-differences-with-vanilla-fri) section).
 1. `fri_verify_step`, which takes a set of queries and returns another set of queries.
 1. `fri_verify_final`, which takes the final set of queries and the last layer coefficients and returns the final result.
 
@@ -758,38 +767,33 @@ struct FriVerificationStateVariable {
 
 We give more detail to each function below.
 
-**`fri_commit`
+**`fri_commit(prologue, cfg)`
 
-1. Initialize the channel with a prologue. A prologue contains any context relevant to this proof.
-1. stark_commit(channel, public_input, unsent_commitment, cfg, stark_domains)
-1. last_layer_coefficients = stark_commitment.fri.last_layer_coefficients
-1. generate_queries(channel, config.n_queries, stark_domains.eval_domain_size)
-1. stark_verify(NUM_COLUMNS_FIRST, NUM_COLUMNS_SECOND, queries, stark_Comitment, witness, stark_domains, settings)
-
-TODO: where is settings used?
+1. Initialize the channel with a prologue (See the [Channel](#channel) section). A prologue contains any context relevant to this proof.
+1. Produce the FRI commits according to the [Commit Phase](#commit-phase) section.
+1. Generate `n_queries` queries in the `eval_domain_size` according to the [Generating Queries](#generating-the-first-queries) section.
+1. Convert the queries to evaluation points following the [Converting A Query To An Evaluation Point](#converting-a-query-to-an-evaluation-point) section, producing `points`.
+1. Evaluate the first layer at the queried `points` using the external dependency (see [External Dependencies](#external-dependencies) section), producing `values`.
+1. Produce the fri_decommitment as `FriDecommitment { values, points }`.
 
 **`fri_verify_initial(queries, fri_commitment, decommitment)`**.
 
 * enforce that the number of queries matches the number of values to decommit
 * enforce that last layer has the right number of coefficients (TODO: how?)
-* compute the first layer of queries `gather_first_layer_queries` (TODO: how?) <-- this only happens for the first layer
+* compute the first layer of queries `gather_first_layer_queries` as `FriLayerQuery { index, y_value, x_inv_value: 3 / x_value }` for each `x_value` and `y_value`
 * initialize and return the two state objects
 
 ```rust
-    (
-        FriVerificationStateConstant {
-            n_layers: (commitment.config.n_layers - 1).try_into().unwrap(),
-            commitment: commitment.inner_layers,
-            eval_points: commitment.eval_points,
-            step_sizes: commitment
-                .config
-                .fri_step_sizes
-                .slice(1, commitment.config.fri_step_sizes.len() - 1),
-            last_layer_coefficients_hash: hash_array(commitment.last_layer_coefficients),
-        },
-        FriVerificationStateVariable { iter: 0, queries: fri_queries.span(), }
-    )
-}
+(
+    FriVerificationStateConstant {
+        n_layers: config.n_layers - 1,
+        commitment: fri_commitment.inner_layers, // the commitments
+        eval_points: fri_commitment.eval_points, // the challenges
+        step_sizes: config.fri_step_sizes[1:], // the number of reduction at each steps
+        last_layer_coefficients_hash: hash_array(last_layer_coefficients),
+    },
+    FriVerificationStateVariable { iter: 0, queries: fri_queries }
+)
 ```
 
 **`fri_verify_step(stateConstant, stateVariable, witness, settings)`**.
