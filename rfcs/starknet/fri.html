@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>starknet FRI</title>
+    <title>Starknet FRI Verifier</title>
     <script
       src="https://www.w3.org/Tools/respec/respec-w3c"
       class="remove"
@@ -104,10 +104,10 @@
       <p>none</p>
     </section>
     <section>
-<h2>Overview of FRI and FRI-PCS</h2>
+<h2>Overview</h2>
 <p>We briefly give an overview of the FRI protocol, before specifying how it is used in the StarkNet protocol.</p>
 <section>
-<h3>Overview of FRI</h3>
+<h3>FRI</h3>
 <aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
 
 <p>FRI is a protocol that works by successively reducing the degree of a polynomial, and where the last reduction is a constant polynomial of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>0</mn></mrow></math>. Typically the protocol obtains the best runtime complexity when each reduction can halve the degree of its input polynomial. For this reason, FRI is typically described and instantiated on a polynomial of degree a power of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>2</mn></mrow></math>.</p>
@@ -117,6 +117,8 @@
 <li>First, an interactive protocol is performed with a verifier who helps randomizing the halving of polynomials. In each round the prover commits to a "layer" polynomial.</li>
 <li>Second, as commitments are not algebraic objects (as FRI works with hash-based commitments), the verifier query them in multiple points to verify that an output polynomial is consistant with its input polynomial and a random challenge. (Intuitively, the more queries, the more secure the protocol.)</li>
 </ol>
+<section>
+<h4>Setup</h4>
 <p>To illustrate how FRI works, one can use <a href="https://www.sagemath.org/">sagemath</a> with the following setup:</p>
 <pre><code class="language-py"># We use the starknet field (https://docs.starknet.io/architecture-and-concepts/cryptography/p-value/)
 starknet_prime = 2^251 + 17*2^192 + 1
@@ -151,6 +153,9 @@ assert find_gen2(1)^2 == 1
 assert find_gen2(2)^4 == 1
 assert find_gen2(3)^8 == 1
 </code></pre>
+</section>
+<section>
+<h4>Reduction</h4>
 <p>A reduction in the FRI protocol is obtained by interpreting an input polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>p</mi></mrow></math> as a polynomial of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>2</mn><mi>n</mi></mrow></math> and splitting it into two polynomials <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>g</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi></mrow></math> of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>n</mi></mrow></math> such that <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>p</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mi>g</mi><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><mi>h</mi><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math>.</p>
 <p>Then, with the help of a verifier's random challenge <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B6;</mi></mrow></math>, we can produce a random linear combination of these polynomials to obtain a new polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>g</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>&#x003B6;</mi><mi>h</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>n</mi></mrow></math>:</p>
 <pre><code class="language-py">def split_poly(p, remove_square=True):
@@ -198,8 +203,10 @@ p3 = h2 + zeta2 * g2 # &lt;-- the prover could send p3 in the clear
 assert p2(zeta2) == p3
 assert p3.degree() == 0
 </code></pre>
-<aside class="note">In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represent the proper reduction of the previous layer's polynomial.</aside>
-
+</section>
+<section>
+<h4>Queries</h4>
+<p>In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represent the proper reduction of the previous layer's polynomial. To do that, they "query" commitments of the different polynomials of the different layers at points/evaluations. Let's see how this works.</p>
 <p>Given a polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>g</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math> and two of its evaluations at some points <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>, we can see that the verifier can recover the two halves by computing:</p>
 <ul>
 <li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>g</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mn>2</mn></mrow></mfrac></mrow></math></li>
@@ -216,8 +223,7 @@ g0_square = (p0_v + p0_v_neg)/2
 h0_square = (p0_v - p0_v_neg)/(2 * v)
 assert p0_v == g0_square + v * h0_square # &lt;------ sanity check
 </code></pre>
-<aside class="note">In practice, the evaluations would be done by querying a commitment to the polynomial. These queries are different from the <strong>FRI queries</strong> (which enforce consistency between layers of reductions), they are <strong>evaluation queries or commitment queries</strong> and result in practice in the prover providing a Merkle membership proof (also called decommitment in this specification) to the committed polynomial.</aside>
-
+<p>In practice, to check that the evaluation on the next layer's polynomial is correct, the verifier would "query" the prover's commitment to the polynomial. These queries are different from the <strong>FRI queries</strong> (which enforce consistency between layers of reductions), they are <strong>evaluation queries or commitment queries</strong> and result in practice in the prover providing a Merkle membership proof (also called decommitment in this specification) to the committed polynomial.</p>
 <p>As we already have an evaluation of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>v</mi><mn>2</mn></msup></mrow></math> of the next layer's polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub></mrow></math>, we can simply query the evaluation of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math> to continue the <strong>FRI query</strong> process on the next layer, and so on:</p>
 <pre><code class="language-py">p1_v = p1(v^2) # &lt;-------------------------------- query on the next layer
 assert g0_square + zeta0 * h0_square == p1_v # &lt;--- the correctness check
@@ -237,6 +243,7 @@ h2_square = (p2_v - p2_v_neg)/(2 * v^4) # h2(v^8)
 assert p2_v == g2_square + v^4 * h2_square # p2(v^4) = g2(v^8) + v^4 * h2(v^8)
 assert p3 == g2_square + zeta2 * h2_square # we already received p3 at the end of the protocol
 </code></pre>
+</section>
 <section>
 <h4>Skipping FRI layers</h4>
 <p>Section 3.11.1 "Skipping FRI Layers" of the ethSTARK paper describes an optimization which skips some of the layers/rounds. The intuition is the following: if we removed the first round commitment (to the polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub></mrow></math>), then the verifier would not be able to:</p>
@@ -292,7 +299,7 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 </section>
 </section>
 <section>
-<h3>Overview of FRI-PCS</h3>
+<h3>FRI-PCS</h3>
 <p>Given a polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>f</mi></mrow></math> and an evaluation point <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>a</mi></mrow></math>, a prover who wants to prove that <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>f</mi><mo stretchy="false">&#x00028;</mo><mi>a</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mi>b</mi></mrow></math> can prove the related statement for some quotient polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>q</mi></mrow></math> of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mi>e</mi><mi>g</mi><mo stretchy="false">&#x00028;</mo><mi>f</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><mn>1</mn></mrow></math>:</p>
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mfrac><mrow><mi>f</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><mi>b</mi></mrow><mrow><mi>x</mi><mo>&#x02212;</mo><mi>a</mi></mrow></mfrac><mo>&#x0003D;</mo><mi>q</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math>
 
@@ -300,7 +307,7 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <p>Specifically, FRI-PCS proves that they can produce such a (commitment to a) polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>q</mi></mrow></math>.</p>
 </section>
 <section>
-<h3>Overview of aggregating multiple FRI proofs</h3>
+<h3>Aggregating multiple FRI proofs</h3>
 <p>To prove that two polynomials <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>a</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>b</mi></mrow></math> exist and are of degree at most <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi></mrow></math>, a prove simply prove that a random linear combination of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>a</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>b</mi></mrow></math> exists and is of degree at most <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi></mrow></math>.</p>
 <p>TODO: what if the different polynomials are of different degrees?</p>
 </section>
@@ -330,8 +337,8 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <p>This means that the verifier computes the queries on <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub><mrow><mi>x</mi></mrow></mrow></math> at points on the original subgroup. So the queries of the first layer are produced using <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>v</mi><mi>&#x02032;</mi></msup><mo>&#x0003D;</mo><mi>v</mi><mo>&#x0002F;</mo><mn>3</mn></mrow></math> (assuming no skipped layers).</p>
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mrow><mi>&#x02032;</mi><mn>2</mn></mrow></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><msup><mi>v</mi><mi>&#x02032;</mi></msup></mrow></mfrac></mrow></math>
 
-<p>Note: we assume no skipped layers.</p>
-<p>TODO: the first layer has an enforced step_size of 0 right?</p>
+<aside class="note">we assume no skipped layers, which is always the case in this specification for the first layer's reduction.</aside>
+
 <p>After that, everything happens as normal (except that now the prover uses the original evaluation domain instead of a coset to evaluate and commit to the layer polynomials).</p>
 <p>Note that these changes can easily be generalized to work when layers are skipped.</p>
 </section>
@@ -351,7 +358,7 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <h3>Evaluation of the first FRI layer</h3>
 <p>As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub></mrow></math>. This is abstracted in this specification as the function <code>eval_oods_polynomial</code> which acts as an oracle from FRI's perspective.</p>
 <p>TODO: not a very satisfying explanation</p>
-<p>Note that this function is not fixed here, as the polynomial being "tested" could be computed in different ways. See the <a href="stark.md">Starknet STARK verifier specification</a> for a concrete example (and for an explanation of why the function is named this way).</p>
+<p>Note that this function is not fixed here, as the polynomial being "tested" could be computed in different ways. See the <a href="stark.html">Starknet STARK verifier specification</a> for a concrete example (and for an explanation of why the function is named this way).</p>
 </section>
 </section>
 <section>
@@ -359,21 +366,15 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <p>We use the following constants throughout the protocol.</p>
 <section>
 <h3>Protocol constants</h3>
-<p>The Starknet prime is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>251</mn></mrow></msup><mo>&#x0002B;</mo><mn>17</mn><mi>&#x000B7;</mi><msup><mn>2</mn><mrow><mn>192</mn></mrow></msup><mo>&#x0002B;</mo><mn>1</mn></mrow></math>:</p>
-<pre><code class="language-rust">const STARK_PRIME: u256 =
-    3618502788666131213697322783095070105623107215331596699973092056135872020481;
-</code></pre>
-<p><strong><code>FIELD_GENERATOR</code></strong>. We use <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>3</mn></mrow></math> as generator for the main multiplicative subgroup of the Starknet field.</p>
+<p><strong><code>STARKNET_PRIME = 3618502788666131213697322783095070105623107215331596699973092056135872020481</code></strong>. The Starknet prime (<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>251</mn></mrow></msup><mo>&#x0002B;</mo><mn>17</mn><mi>&#x000B7;</mi><msup><mn>2</mn><mrow><mn>192</mn></mrow></msup><mo>&#x0002B;</mo><mn>1</mn></mrow></math>).</p>
+<p><strong><code>FIELD_GENERATOR = 3</code></strong>. The generator for the main multiplicative subgroup of the Starknet field. This is also used as coset factor to produce the coset used in the first layer's evaluation.</p>
 </section>
 <section>
 <h3>FRI constants</h3>
 <p><strong><code>MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15</code></strong>. TKTK</p>
 <p><strong><code>MAX_FRI_LAYERS = 15</code></strong>. The maximum number of layers in the FRI protocol. This means that the protocol can test that committed polynomials exist and are of degree at most <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>15</mn></mrow></msup></mrow></math>. (TODO: double check)</p>
 <p><strong><code>MAX_FRI_STEP = 4</code></strong>. The maximum number of layers that can be skipped in FRI (see the overview for more details).</p>
-<p>const MONTGOMERY_R: felt252 =
-    3618502788666127798953978732740734578953660990361066340291730267701097005025; // 2**256 % STARK_PRIME
-const MONTGOMERY_R_INVERSE: felt252 =
-    113078212145816603762751633895895194930089271709401121343797004406777446400;</p>
+<p><strong><code>MONTGOMERY_R = 3618502788666127798953978732740734578953660990361066340291730267701097005025</code></strong>. The Montgomery form of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>256</mn></mrow></msup><mspace width="1em" /><mi>mod</mi><mspace width="0.333em" /><mtext>STARK_PRIME</mtext></mrow></math>:</p>
 </section>
 <section>
 <h3>TODO: Step generators</h3>
@@ -393,7 +394,7 @@ const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99
 </section>
 </section>
 <section>
-<h2>Dynamic Configurations</h2>
+<h2>Configuration</h2>
 <p>The FRI protocol is globally parameterized according to the following variables which from the protocol making use of FRI. For a real-world example, check the <a href="stark.md">Starknet STARK verifier specification</a>.</p>
 <p><strong><code>n_verifier_friendly_commitment_layers</code></strong>. The number of layers (starting from the bottom) that make use of the circuit-friendly hash.</p>
 <p>The protocol as implemented accepts proofs created using different parameters. This allows provers to decide on the trade-offs between proof size, prover time and space complexity, and verifier time and space complexity. </p>
@@ -501,7 +502,18 @@ struct TableCommitmentConfig {
 </section>
 </section>
 <section>
-<h2>Commit phase</h2>
+<h2>Channel</h2>
+<p>we should specify this primitive</p>
+</section>
+<section>
+<h2>Protocol</h2>
+<p>The FRI protocol is split into two phases:</p>
+<ol>
+<li>Commit phase</li>
+<li>Query phase</li>
+</ol>
+<section>
+<h3>Commit Phase</h3>
 <p>This should basically just absorb the commitments of every layer sent by the prover (potentially skipping layers)</p>
 <pre><code class="language-rust">#[derive(Drop, Copy, PartialEq, Serde)]
 struct TableCommitmentConfig {
@@ -513,6 +525,7 @@ struct VectorCommitmentConfig {
     n_verifier_friendly_commitment_layers: felt252, // TODO: ?
 }
 </code></pre>
+<p>The layer 0 polynomial is not part of the protocol, we assume that it comes from somewhere and that we can query evaluations of it in a coset <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>3</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mi>e</mi></msub></mrow></math> where <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mi>e</mi></msub></mrow></math> is the generator of the evaluation domain. In the <a href="stark.html">Starknet STARK protocol</a> it represents a blown up evaluation domain, that is, an evaluation domain that is a larger power of 2 than the evaluation domain used in the protocol.</p>
 <pre><code class="language-py"># TODO: step_sizes is ignored! Shouldn't we check that the layer cfg are properly following the step sizes?
 def fri_commit_rounds(channel, n_layers, configs, unsent_commitments, step_sizes):
     commitments = []
@@ -537,17 +550,13 @@ def fri_commit(channel, unsent_commitment, cfg):
 
     return FriCommitment(cfg, inner_layers=commitments, eval_points, last_layer_coefficients=unsent_commitment.last_layer_coefficients)
 </code></pre>
-<p>it seems like only the first round has a step size of 1, every other round has a step in <code>[1, MAX_FRI_STEP=4]</code></p>
-<p>TODO: is first round really forced to have a step size of 1??</p>
+<p>The first round has a step size of 1, every other round has a step in <code>[1, MAX_FRI_STEP=4]</code>.</p>
+<p>TODO: explain why, I think this is because you don't want to have to produce too many evaluations for the first layer (which is  expensive in the <a href="stark.html">STARK protocol</a>).</p>
 </section>
 <section>
-<h2>TODO: Channel</h2>
-<p>we should specify this primitive</p>
-</section>
+<h3>Query Phase</h3>
 <section>
-<h2>Queries</h2>
-<section>
-<h3>Generating queries</h3>
+<h4>Generating queries</h4>
 <p>FRI queries are generated once, and then refined through each reduction of the FRI protocol.</p>
 <p>The generation of each FRI query goes through the same process:</p>
 <ul>
@@ -558,7 +567,7 @@ def fri_commit(channel, unsent_commitment, cfg):
 <p>Finally, when all FRI queries have been generated, they are sorted in ascending order.</p>
 </section>
 <section>
-<h3>Verify a layer's queries</h3>
+<h4>Verify a layer's queries</h4>
 <p>TODO: refer to the section on the first layer evaluation stuff (external dependency)</p>
 <p>Besides the first layer, each layer verification of a query happens by simply decommitng a layer's queries.</p>
 <pre><code class="language-rust">table_decommit(
@@ -572,7 +581,7 @@ def fri_commit(channel, unsent_commitment, cfg):
 <p>TODO: link to section on merkle tree</p>
 </section>
 <section>
-<h3>Computing the next layer's queries</h3>
+<h4>Computing the next layer's queries</h4>
 <p>Each reduction will produce queries to the next layer, which will expect specific evaluations.</p>
 <p>The next queries are derived as:</p>
 <ul>
@@ -581,7 +590,7 @@ def fri_commit(channel, unsent_commitment, cfg):
 <li>value: FRI formula below</li>
 </ul>
 <section>
-<h4>FRI formula</h4>
+<h5>FRI formula</h5>
 <p>The next evaluations expected at the queried layers are derived as:</p>
 <p>Queries between layers verify that the next layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mi>j</mi></mrow></msub></mrow></math> is computed correctly based on the currently layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub></mrow></math>.
 The next layer is either the direct next layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub></mrow></math> or a layer further away if the configuration allows layers to be skipped.
@@ -636,7 +645,7 @@ Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the <c
 </section>
 </section>
 <section>
-<h2>Full (Broken Up) Protocol</h2>
+<h3>Full Protocol</h3>
 <p>The FRI flow is split into three main functions. The reason is that verification of FRI proofs are computationally intensive, and programs might want to verify a FRI proof in multiple calls (for example, if calls have a cost limit). The three main functions are:</p>
 <ul>
 <li><code>fri_verify_initial</code> which returns the initial set of queries.</li>
@@ -701,6 +710,7 @@ Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the <c
     )
 }
 </code></pre>
+</section>
 </section>
 <section>
 <h2>Test Vectors</h2>

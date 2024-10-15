@@ -1,5 +1,5 @@
 ---
-title: "starknet FRI"
+title: "Starknet FRI Verifier"
 abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximity (FRI)</strong> is a cryptographic protocol that allows a prover to prove to a verifier (in an interactive, or non-interactive fashion) that a hash-based commitment (e.g. a Merkle tree) of a vector of values represent the evaluations of a polynomial of some known degree. (That is, the vector committed is not just a bunch of uncorrelated values.) The algorithm is often referred to as a \"low degree\" test, as the degree of the underlying polynomial is expected to be much lower than the degree of the field the polynomial is defined over. Furthermore, the algorithm can also be used to prove the evaluation of a committed polynomial, an application that is often called FRI-PCS. We discuss both algorithms in this document, as well as how to batch multiple instances of the two algorithms.</p>
 
 <p>For more information about the original construction, see <a href=\"https://eccc.weizmann.ac.il/report/2017/134/\">Fast Reed-Solomon Interactive Oracle Proofs of Proximity</a>. This document is about the specific instantiation of FRI and FRI-PCS as used by the StarkNet protocol.</p>
@@ -8,11 +8,11 @@ abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximi
 sotd: "none"
 ---
 
-## Overview of FRI and FRI-PCS
+## Overview
 
 We briefly give an overview of the FRI protocol, before specifying how it is used in the StarkNet protocol.
 
-### Overview of FRI
+### FRI
 
 <aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
 
@@ -24,6 +24,8 @@ In order to ensure that the reductions are correct, two mechanisms are used:
 
 1. First, an interactive protocol is performed with a verifier who helps randomizing the halving of polynomials. In each round the prover commits to a "layer" polynomial.
 2. Second, as commitments are not algebraic objects (as FRI works with hash-based commitments), the verifier query them in multiple points to verify that an output polynomial is consistant with its input polynomial and a random challenge. (Intuitively, the more queries, the more secure the protocol.)
+
+#### Setup
 
 To illustrate how FRI works, one can use [sagemath](https://www.sagemath.org/) with the following setup:
 
@@ -61,6 +63,8 @@ assert find_gen2(1)^2 == 1
 assert find_gen2(2)^4 == 1
 assert find_gen2(3)^8 == 1
 ```
+
+#### Reduction
 
 A reduction in the FRI protocol is obtained by interpreting an input polynomial $p$ as a polynomial of degree $2n$ and splitting it into two polynomials $g$ and $h$ of degree $n$ such that $p(x) = g(x^2) + x h(x^2)$.
 
@@ -116,7 +120,9 @@ assert p2(zeta2) == p3
 assert p3.degree() == 0
 ```
 
-<aside class="note">In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represent the proper reduction of the previous layer's polynomial.</aside>
+#### Queries
+
+In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represent the proper reduction of the previous layer's polynomial. To do that, they "query" commitments of the different polynomials of the different layers at points/evaluations. Let's see how this works.
 
 Given a polynomial $p_0(x) = g_0(x^2) + x h_0(x^2)$ and two of its evaluations at some points $v$ and $-v$, we can see that the verifier can recover the two halves by computing:
 
@@ -140,7 +146,7 @@ h0_square = (p0_v - p0_v_neg)/(2 * v)
 assert p0_v == g0_square + v * h0_square # <------ sanity check
 ```
 
-<aside class="note">In practice, the evaluations would be done by querying a commitment to the polynomial. These queries are different from the <strong>FRI queries</strong> (which enforce consistency between layers of reductions), they are <strong>evaluation queries or commitment queries</strong> and result in practice in the prover providing a Merkle membership proof (also called decommitment in this specification) to the committed polynomial.</aside>
+In practice, to check that the evaluation on the next layer's polynomial is correct, the verifier would "query" the prover's commitment to the polynomial. These queries are different from the <strong>FRI queries</strong> (which enforce consistency between layers of reductions), they are <strong>evaluation queries or commitment queries</strong> and result in practice in the prover providing a Merkle membership proof (also called decommitment in this specification) to the committed polynomial.
 
 As we already have an evaluation of $v^2$ of the next layer's polynomial $p_1$, we can simply query the evaluation of $p_1(-v^2)$ to continue the **FRI query** process on the next layer, and so on:
 
@@ -226,7 +232,7 @@ coset = [3 * g^i for i in range(8)]
 poly8_evals = [p0(x) for x in coset] # <-- we would merklelify this as statement
 ```
 
-### Overview of FRI-PCS
+### FRI-PCS
 
 Given a polynomial $f$ and an evaluation point $a$, a prover who wants to prove that $f(a) = b$ can prove the related statement for some quotient polynomial $q$ of degree $deg(f) - 1$:
 
@@ -238,7 +244,7 @@ $$
 
 Specifically, FRI-PCS proves that they can produce such a (commitment to a) polynomial $q$.
 
-### Overview of aggregating multiple FRI proofs
+### Aggregating multiple FRI proofs
 
 To prove that two polynomials $a$ and $b$ exist and are of degree at most $d$, a prove simply prove that a random linear combination of $a$ and $b$ exists and is of degree at most $d$.
 
@@ -292,9 +298,7 @@ $$
 p_1((v'^2) = p_0(v) + p_0(-v) + \zeta_0 \cdot \frac{p_0(v) - p_0(-v)}{v'}
 $$
 
-Note: we assume no skipped layers.
-
-TODO: the first layer has an enforced step_size of 0 right?
+<aside class="note">we assume no skipped layers, which is always the case in this specification for the first layer's reduction.</aside>
 
 After that, everything happens as normal (except that now the prover uses the original evaluation domain instead of a coset to evaluate and commit to the layer polynomials).
 
@@ -319,7 +323,7 @@ As part of the protocol, the prover must provide a number of evaluations of the 
 
 TODO: not a very satisfying explanation
 
-Note that this function is not fixed here, as the polynomial being "tested" could be computed in different ways. See the [Starknet STARK verifier specification](stark.md) for a concrete example (and for an explanation of why the function is named this way).
+Note that this function is not fixed here, as the polynomial being "tested" could be computed in different ways. See the [Starknet STARK verifier specification](stark.html) for a concrete example (and for an explanation of why the function is named this way).
 
 ## Constants
 
@@ -327,14 +331,9 @@ We use the following constants throughout the protocol.
 
 ### Protocol constants
 
-The Starknet prime is $2^{251} + 17 \cdot 2^{192} + 1$:
+**`STARKNET_PRIME = 3618502788666131213697322783095070105623107215331596699973092056135872020481`**. The Starknet prime ($2^{251} + 17 \cdot 2^{192} + 1$).
 
-```rust
-const STARK_PRIME: u256 =
-    3618502788666131213697322783095070105623107215331596699973092056135872020481;
-```
-
-**`FIELD_GENERATOR`**. We use $3$ as generator for the main multiplicative subgroup of the Starknet field.
+**`FIELD_GENERATOR = 3`**. The generator for the main multiplicative subgroup of the Starknet field. This is also used as coset factor to produce the coset used in the first layer's evaluation.
 
 ### FRI constants
 
@@ -344,12 +343,7 @@ const STARK_PRIME: u256 =
 
 **`MAX_FRI_STEP = 4`**. The maximum number of layers that can be skipped in FRI (see the overview for more details).
 
-
-
-const MONTGOMERY_R: felt252 =
-    3618502788666127798953978732740734578953660990361066340291730267701097005025; // 2**256 % STARK_PRIME
-const MONTGOMERY_R_INVERSE: felt252 =
-    113078212145816603762751633895895194930089271709401121343797004406777446400;
+**`MONTGOMERY_R = 3618502788666127798953978732740734578953660990361066340291730267701097005025`**. The Montgomery form of $2^{256} \mod \text{STARK_PRIME}$:
 
 ### TODO: Step generators
 
@@ -369,7 +363,7 @@ const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99
 
 TODO: explain more here
 
-## Dynamic Configurations
+## Configuration
 
 The FRI protocol is globally parameterized according to the following variables which from the protocol making use of FRI. For a real-world example, check the [Starknet STARK verifier specification](stark.md).
 
@@ -492,7 +486,18 @@ array![
 * but if x pointed at the first value, it actually points to an evaluation of -x, so we need to correct the -x we have by multiplying with -1 again so that we get x (or -1/x becomes 1/x, same thing)
 * if x points to the 2 value, then 
 
-## Commit phase
+## Channel
+
+we should specify this primitive
+
+## Protocol
+
+The FRI protocol is split into two phases:
+
+1. Commit phase
+2. Query phase
+
+### Commit Phase
 
 This should basically just absorb the commitments of every layer sent by the prover (potentially skipping layers)
 
@@ -508,6 +513,7 @@ struct VectorCommitmentConfig {
 }
 ```
 
+The layer 0 polynomial is not part of the protocol, we assume that it comes from somewhere and that we can query evaluations of it in a coset $3 \cdot \omega_e$ where $\omega_e$ is the generator of the evaluation domain. In the [Starknet STARK protocol](stark.html) it represents a blown up evaluation domain, that is, an evaluation domain that is a larger power of 2 than the evaluation domain used in the protocol.
 
 ```py
 # TODO: step_sizes is ignored! Shouldn't we check that the layer cfg are properly following the step sizes?
@@ -535,17 +541,13 @@ def fri_commit(channel, unsent_commitment, cfg):
     return FriCommitment(cfg, inner_layers=commitments, eval_points, last_layer_coefficients=unsent_commitment.last_layer_coefficients)
 ```
 
-it seems like only the first round has a step size of 1, every other round has a step in `[1, MAX_FRI_STEP=4]`
+The first round has a step size of 1, every other round has a step in `[1, MAX_FRI_STEP=4]`.
 
-TODO: is first round really forced to have a step size of 1??
+TODO: explain why, I think this is because you don't want to have to produce too many evaluations for the first layer (which is  expensive in the [STARK protocol](stark.html)).
 
-## TODO: Channel
+### Query Phase
 
-we should specify this primitive
-
-## Queries
-
-### Generating queries
+#### Generating queries
 
 FRI queries are generated once, and then refined through each reduction of the FRI protocol.
 
@@ -557,7 +559,7 @@ The generation of each FRI query goes through the same process:
 
 Finally, when all FRI queries have been generated, they are sorted in ascending order.
 
-### Verify a layer's queries
+#### Verify a layer's queries
 
 TODO: refer to the section on the first layer evaluation stuff (external dependency)
 
@@ -575,7 +577,7 @@ table_decommit(
 
 TODO: link to section on merkle tree
 
-### Computing the next layer's queries
+#### Computing the next layer's queries
 
 Each reduction will produce queries to the next layer, which will expect specific evaluations.
 
@@ -585,7 +587,7 @@ The next queries are derived as:
 * point: point^2
 * value: FRI formula below
 
-#### FRI formula
+##### FRI formula
 
 The next evaluations expected at the queried layers are derived as:
 
@@ -645,7 +647,7 @@ TODO: reconcile with section on the differences with vanilla FRI
 
 TODO: reconcile with constants used for elements and inverses chosen in subgroups of order $2^i$ (the $\omega$s)
 
-## Full (Broken Up) Protocol
+### Full Protocol
 
 The FRI flow is split into three main functions. The reason is that verification of FRI proofs are computationally intensive, and programs might want to verify a FRI proof in multiple calls (for example, if calls have a cost limit). The three main functions are:
 
