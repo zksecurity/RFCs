@@ -498,7 +498,35 @@ array![
 
 ## Channel
 
-we should specify this primitive
+A channel is an object that mimics the communication channel between the prover and the verifier, and is used to abstract the [Fiat-Shamir transformation]() used to make the protocol non-interactive (the verifier messages are replaced by sampling a hash function).
+
+A channel is initialized at the beginning of the protocol, and is instantiated with a hash function. It is implemented as a continuous hash that "absorbs" every prover messages and which output can be used to produce the verifier's challenges.
+
+A channel has two fields:
+
+* A **digest**, which represents the current internal state.
+* A **counter**, which helps produce different values when the channel is used repeatedly to sample verifier challenges.
+
+The channel has the following interface:
+
+**`init(digest)`**. 
+
+* Initializes the channel with a digest, which is the prologue/context to the protocol. 
+* Set the counter to $0$.
+
+**message from prover to verifier**.
+
+* Resets the counter to $0$.
+* Set the digest to `POSEIDON_hash(digest + 1 || value)`. (TODO: what if several values)
+
+TODO: explain why the +1
+
+**message from verifier to prover**.
+
+* Produce a random value as `hades_permutation(digest, counter, 2)`.
+* Increment the counter.
+
+<aside class="note">With the current design, two different protocols where one produces $n$ challenges and another that produces $m$ challenges will have the same "transcript" and thus will continue to produce the same challenges later on in the protocol. While there are no issues in this design in the context of Starknet, this might not always be secure when used in other protocols.</aside>
 
 ## Protocol
 
@@ -539,39 +567,13 @@ struct FriUnsentCommitment {
 
 We process it in the following way:
 
-1. Enforce that the first layer has a step size of 0 (`cfg.fri_step_sizes[0] == 0`).
-
-TODO: write the following code in a more readable way
-
-```py
-# TODO: step_sizes is ignored! Shouldn't we check that the layer cfg are properly following the step sizes?
-def fri_commit_rounds(channel, n_layers, configs, unsent_commitments, step_sizes):
-    commitments = []
-    eval_points = []
-    # TODO: we don't check that n_layers matches the length of these arrays!
-    for unsent_commitment, cfg in zip(unsent_commitments, configs):
-        commit = table_commit(channel, unsent_commitment, cfg) # absorbs the commitment # TODO: where is each cfg checked?
-        commitments.append(commit)
-        eval_points.append(channel.random_felt_to_prover())
-
-def fri_commit(channel, unsent_commitment, cfg):
-    assert cfg.fri_step_sizes[0] == 0
-
-    # why n_layers - 1 ?
-    commitments, eval_points = fri_commit_rounds(channel, cfg.n_layers-1, cfg.inner_layers, unsent_commitment.inner_layers, cfg.fri_step_sizes)
-
-    # absorb last layer
-    channel.read_felt_vector_from_prover(unsent_commitment.last_layer_coefficients)
-
-    # check that the last layer matches the config
-    assert pow(2, cfg.log_last_layer_degree_bound) == len(unsent_commitment.last_layer_coefficients)
-
-    return FriCommitment(cfg, inner_layers=commitments, eval_points, last_layer_coefficients=unsent_commitment.last_layer_coefficients)
-```
-
-The first round has a step size of 1, every other round has a step in `[1, MAX_FRI_STEP=4]`.
-
-TODO: explain why, I think this is because you don't want to have to produce too many evaluations for the first layer (which is  expensive in the [STARK protocol](stark.html)).
+1. Enforce that the first layer has a step size of 0 (`cfg.fri_step_sizes[0] == 0`). (Note that this is mostly to make sure that the prover is following the protocol correctly, as the second layer is never skipped in this standard.)
+1. Go through each commitment in order in the `inner_layers` field and perform the following:
+   1. Absorb the commitment using the channel.
+   1. Produce a random challenge.
+1. Absorb the `last_layer_coefficients` with the channel.
+1. Check that the last layer's degree is correct (according to the configuration `log_last_layer_degree_bound`, see the [Configuration section](#configuration)): `2^cfg.log_last_layer_degree_bound == len(unsent_commitment.last_layer_coefficients)`.
+1. return all the random challenges.
 
 ### Query Phase
 
