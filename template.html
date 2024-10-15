@@ -1,14 +1,11 @@
 <!DOCTYPE html>
 <html>
-  <head>
+
+<head>
     <meta charset="utf-8" />
     <title>$title</title>
-    <script
-      src="https://www.w3.org/Tools/respec/respec-w3c"
-      class="remove"
-      defer
-    ></script>
-     <!-- <script>
+    <script src="https://www.w3.org/Tools/respec/respec-w3c" class="remove" defer></script>
+    <!-- <script>
       MathJax = {
         tex: {
           inlineMath: [ 
@@ -24,27 +21,27 @@
 
     <!-- syntax highlighting -->
     <script class='remove'>
-		async function loadRust() {
-			//this is the function you call in 'preProcess', to load the highlighter
-			const worker = await new Promise(resolve => {
-				require(["core/worker"], ({ worker }) => resolve(worker));
-			});
-			const action = "highlight-load-lang";
-			const langURL =
-				"https://gistcdn.githack.com/mimoo/a9e28fc565dddb369477e8bd34e6a1ae/raw/d8a7057fe9c7140f7ef5972b333716d9933fa29b/hljs-rust.js";
-			const propName = "hljsDefineRust"; // This funtion is defined in the highlighter being loaded
-			const lang = "language-rust"; // this is the class you use to identify the language
-			worker.postMessage({ action, langURL, propName, lang });
-			return new Promise(resolve => {
-				worker.addEventListener("message", function listener({ data }) {
-					const { action: responseAction, lang: responseLang } = data;
-					if (responseAction === action && responseLang === lang) {
-						worker.removeEventListener("message", listener);
-						resolve();
-					}
-				});
-			});
-		}
+        async function loadRust() {
+            //this is the function you call in 'preProcess', to load the highlighter
+            const worker = await new Promise(resolve => {
+                require(["core/worker"], ({ worker }) => resolve(worker));
+            });
+            const action = "highlight-load-lang";
+            const langURL =
+                "https://gistcdn.githack.com/mimoo/a9e28fc565dddb369477e8bd34e6a1ae/raw/d8a7057fe9c7140f7ef5972b333716d9933fa29b/hljs-rust.js";
+            const propName = "hljsDefineRust"; // This funtion is defined in the highlighter being loaded
+            const lang = "language-rust"; // this is the class you use to identify the language
+            worker.postMessage({ action, langURL, propName, lang });
+            return new Promise(resolve => {
+                worker.addEventListener("message", function listener({ data }) {
+                    const { action: responseAction, lang: responseLang } = data;
+                    if (responseAction === action && responseLang === lang) {
+                        worker.removeEventListener("message", listener);
+                        resolve();
+                    }
+                });
+            });
+        }
 
         async function loadPython() {
             const worker = await new Promise(resolve => {
@@ -54,7 +51,7 @@
             const langURL =
                 "https://gistcdn.githack.com/mimoo/fd9652b0c0d64bfc9f8cae69c72030b1/raw/2315322f87ba81c92c22477a05da6c4181f02df2/respec-py.js"; // URL to Python highlighter
             const propName = "hljsDefinePython"; // Adjust this if needed
-            const lang = "language-py"; 
+            const lang = "language-py";
             worker.postMessage({ action, langURL, propName, lang });
             return new Promise(resolve => {
                 worker.addEventListener("message", function listener({ data }) {
@@ -66,41 +63,31 @@
             });
         }
 
-		var respecConfig = {
-			preProcess: [loadRust, loadPython],
-			specStatus: "base",
-			editors: [
-				// {% for editor in editors %}
-				{
-					name: "{{editor.0}}",
-					url: "{{editor.1}}",
-				},
-				// {% endfor %}
-			],
-			github: "zksecurity/RFCs",
-			shortName: "{{short_name}}",
-			//			format: "markdown",
-		};
+        var respecConfig = {
+            preProcess: [loadRust, loadPython],
+            specStatus: "unofficial",
+            latestVersion: null,
+            editors: [
+                {
+                    name: "David Wong",
+                    url: "https://www.zksecurity.xyz",
+                },
+            ],
+            github: "zksecurity/RFCs",
+            shortName: "starknet-fri",
+        };
+    </script>
 
-              // All config options at https://respec.org/docs/
-    //   var respecConfig = {
-    //     specStatus: "ED",
-    //     editors: [{ name: "David Wong", url: "https://www.zksecurity.xyz" }],
-    //     github: "zksecurity/RFCs",
-    //     shortName: "dahut",
-    //     xref: "web-platform",
-    //     group: "my-working-group",
-    //   };
-	</script>
+</head>
 
-  </head>
-  <body>
+<body>
     <section id="abstract">
-      <p>$abstract</p>
+        <p>$abstract</p>
     </section>
     <section id="sotd">
-      <p>$sotd</p>
+        <p>$sotd</p>
     </section>
     $spec
-  </body>
+</body>
+
 </html>
