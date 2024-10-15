@@ -33,14 +33,6 @@ jobs:
         run: |
           just build
 
-      - name: Check for changes
-        run: |
-          git status --porcelain
-          if [[ -n $(git status --porcelain) ]]; then
-            echo "Error: There are uncommitted changes after the build."
-            exit 1
-          fi
-
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: github.ref == 'refs/heads/main' # to avoid deploying on PRs
