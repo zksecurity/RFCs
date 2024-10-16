@@ -14,4 +14,4 @@ serve:
     python -m http.server
 
 watch:
-    just serve & watchexec -w md2respec.py -w source/ -w template.html just build
+    just serve & watchexec -w md2respec.py -w source/ -w template.html -w index_template.html just build

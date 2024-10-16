@@ -5,7 +5,7 @@ abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximi
 <p>For more information about the original construction, see <a href=\"https://eccc.weizmann.ac.il/report/2017/134/\">Fast Reed-Solomon Interactive Oracle Proofs of Proximity</a>. This document is about the specific instantiation of FRI and FRI-PCS as used by the StarkNet protocol.</p>
 
 <aside class=\"note\">Specifically, it matches the [integrity verifier](https://github.com/HerodotusDev/integrity/tree/main/src) which is a Cairo implementation of a Cairo verifier. There might be important differences with the Cairo verifier implemented in C++ or Solidity.</aside>"
-sotd: "none"
+sotd: "draft"
 shortName: "starknet-fri"
 editor: "David Wong"
 tags: ["starknet", "fri"]

@@ -1,7 +1,7 @@
 ---
 title: "Starknet Channels for Fiat-Shamir Instantiation"
 abstract: "TKTK"
-sotd: "none"
+sotd: "draft"
 shortName: "starknet-channel"
 editor: "David Wong"
 tags: ["starknet", "fiat-shamir"]

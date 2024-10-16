@@ -1,7 +1,7 @@
 ---
 title: "Starknet STARK Verifier"
 abstract: "In this document we specify the STARK verifier used in Starknet."
-sotd: "none"
+sotd: "draft"
 shortName: "starknet-stark"
 editor: "David Wong"
 tags: ["starknet", "stark", "ethSTARK"]
