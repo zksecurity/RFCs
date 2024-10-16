@@ -110,7 +110,7 @@
 <h2>Verifier-Friendly Layers</h2>
 <p>A <code>n_verifier_friendly_layers</code> variable can be passed which dictates at which layer the Merkle tree starts using a verifier-friendly hash.</p>
 <p>In the following example, the height of the table commitment is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>6</mn></mrow></math> (and the height of the vector commitment is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>5</mn></mrow></math>). As such, a <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>6</mn></mrow></math> would mean that only the table would use the verifier-friendly hash. A <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>5</mn></mrow></math> would mean that the last / bottom layer of the Merkle tree would also use the verifier-friendly hash. A <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>1</mn></mrow></math> would mean that all layers would use the verifier-friendly hash.</p>
-<p><img alt="vector decommit" src="/RFCs/img/starknet/fri/vector_decommit.png" /></p>
+<p><img alt="vector decommit" src="/RFCs/img/starknet/fri/tree_height.png" /></p>
 <section>
 <h3>Note on commitment multiple evaluations under the same leaf</h3>
 <ul>
