@@ -8,6 +8,7 @@ abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximi
 sotd: "none"
 shortName: "starknet-fri"
 editor: "David Wong"
+tags: ["starknet", "fri"]
 ---
 
 ## Overview
@@ -331,13 +332,11 @@ TODO: why the alternate use of hash functions?
 
 See the [Channel](channel.html) specification for more details.
 
-### Evaluation of the first FRI layer
+### Evaluations of the first FRI layer
 
-As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial $p_0$. This is abstracted in this specification as the function `eval_oods_polynomial` which acts as an oracle from FRI's perspective.
+As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial $p_0$ (based on the FRI queries that the verifier generates).
 
-TODO: not a very satisfying explanation
-
-Note that this function is not fixed here, as the polynomial being "tested" could be computed in different ways. See the [Starknet STARK verifier specification](stark.html) for a concrete example (and for an explanation of why the function is named this way).
+We abstract this here as an oracle that magically provides evaluations, it is the responsibility of the user of this protocol to ensure that the evaluations are correct. See the [Starknet STARK verifier specification](stark.html) for a concrete usage example.
 
 ## Constants
 
@@ -449,64 +448,6 @@ TODO: validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
 * the `log_expected_input_degree + log_n_cosets == log_input_size`
   * TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)
   * where `log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound`
-
-## Commitments
-
-Commitments of polynomials are done using [Merkle trees](). The Merkle trees can be configured to hash some parameterized number of the lower layers using a circuit-friendly hash function (Poseidon).
-
-* TODO: why montgomery form?
-
-### Table commitments
-
-A table commitment in this context is a vector commitment where leaves are potentially hashes of several values (tables of multiple columns and a single row).
-
-### Vector commitments
-
-A vector commitment is simply a Merkle tree. 
-
-TODO: diagram.
-
-![vector commit](/img/starknet/fri/vector_commit.png)
-
-### Vector membership proofs
-
-A vector decommitment/membership proof must provide a witness (the neighbor nodes missing to compute the root of the Merkle tree) ordered in a specific way. The following algorithm dictates in which order the nodes hash values provided in the proof are consumed:
-
-![vector decommit](/img/starknet/fri/vector_decommit.png)
-
-### Note on commitment multiple evaluations under the same leaf
-
-* the following array contains all the 16-th roots of unity, handily ordered
-* that is, the first represents the subgroup of order 1, the two first values represent the subgroup of order 2, the four first values represent the subgroup of order 4, and so on
-* furthermore, these values are chosen in relation to how evaluations are ordered in a leaf of a commitment
-* each value tells you exactly what to multiply to 1/(something*x) to obtain 1/(x)
-* TODO: but wait, how is inv_x obtained... that doesn't make sense no?
-* it seems like the following values are used to "correct" the x value depending on where x pointed at
-
-```
-array![
-    0x1,
-    0x800000000000011000000000000000000000000000000000000000000000000,
-    0x625023929a2995b533120664329f8c7c5268e56ac8320da2a616626f41337e3,
-    0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e,
-    0x63365fe0de874d9c90adb1e2f9c676e98c62155e4412e873ada5e1dee6feebb,
-    0x1cc9a01f2178b3736f524e1d06398916739deaa1bbed178c525a1e211901146,
-    0x3b912c31d6a226e4a15988c6b7ec1915474043aac68553537192090b43635cd,
-    0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df6f4bc9ca34,
-    0x5ec467b88826aba4537602d514425f3b0bdf467bbf302458337c45f6021e539,
-    0x213b984777d9556bac89fd2aebbda0c4f420b98440cfdba7cc83ba09fde1ac8,
-    0x5ce3fa16c35cb4da537753675ca3276ead24059dddea2ca47c36587e5a538d1,
-    0x231c05e93ca34c35ac88ac98a35cd89152dbfa622215d35b83c9a781a5ac730,
-    0x00b54759e8c46e1258dc80f091e6f3be387888015452ce5f0ca09ce9e571f52,
-    0x7f4ab8a6173b92fda7237f0f6e190c41c78777feabad31a0f35f63161a8e0af,
-    0x23c12f3909539339b83645c1b8de3e14ebfee15c2e8b3ad2867e3a47eba558c,
-    0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75,
-]
-```
-
-* that is, if x pointed at the beginning of a coset, then we don't need to correct it (the first evaluation committed to contains x)
-* but if x pointed at the first value, it actually points to an evaluation of -x, so we need to correct the -x we have by multiplying with -1 again so that we get x (or -1/x becomes 1/x, same thing)
-* if x points to the 2 value, then 
 
 ## Protocol
 
@@ -749,22 +690,22 @@ struct FriVerificationStateVariable {
 
 We give more detail to each function below.
 
-**`fri_commit(channel, cfg)`**.
+**`fri_commit(channel)`**.
 
 1. Take a channel with a prologue (See the [Channel](#channel) section). A prologue contains any context relevant to this proof.
-1. Produce the FRI commits according to the [Commit Phase](#commit-phase) section.
-2. Produce the proof of work according to the [Proof of Work](#proof-of-work) section.
-3. Generate `n_queries` queries in the `eval_domain_size` according to the [Generating Queries](#generating-the-first-queries) section.
-4. Convert the queries to evaluation points following the [Converting A Query To An Evaluation Point](#converting-a-query-to-an-evaluation-point) section, producing `points`.
-5. Evaluate the first layer at the queried `points` using the external dependency (see [External Dependencies](#external-dependencies) section), producing `values`.
-6. Produce the fri_decommitment as `FriDecommitment { values, points }`.
+2. Produce the FRI commits according to the [Commit Phase](#commit-phase) section.
+3. Produce the proof of work according to the [Proof of Work](#proof-of-work) section.
+4. Generate `n_queries` queries in the `eval_domain_size` according to the [Generating Queries](#generating-the-first-queries) section.
+5. Convert the queries to evaluation points following the [Converting A Query To An Evaluation Point](#converting-a-query-to-an-evaluation-point) section, producing `points`.
+6. Evaluate the first layer at the queried `points` using the external dependency (see [External Dependencies](#external-dependencies) section), producing `values`.
+7. Produce the fri_decommitment as `FriDecommitment { values, points }`.
 
-**`fri_verify_initial(queries, fri_commitment, decommitment)`**.
+**`fri_verify_initial(queries, fri_commitment, decommitment)`**. Takes the FRI queries, the FRI commitments (each layer's committed polynomial), as well as the evaluation points and their associated evaluations of the first layer (in `decommitment`).
 
-* enforce that the number of queries matches the number of values to decommit
-* enforce that last layer has the right number of coefficients (TODO: how?)
-* compute the first layer of queries `gather_first_layer_queries` as `FriLayerQuery { index, y_value, x_inv_value: 3 / x_value }` for each `x_value` and `y_value`
-* initialize and return the two state objects
+* Enforce that for each query there is a matching derived evaluation point and evaluation at that point on the first layer contained in the given `decommitment`.
+* Enforce that last layer has the right number of coefficients as expected by the FRI configuration (see the [FRI Configuration](#fri-configuration) section).
+* Compute the first layer of queries as `FriLayerQuery { index, y_value, x_inv_value: 3 / x_value }` for each `x_value` and `y_value` given in the `decommitment`
+* Initialize and return the two state objects
 
 ```rust
 (
