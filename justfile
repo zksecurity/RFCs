@@ -5,6 +5,7 @@ setup:
 
 build:
     python md2respec.py --output-path rfcs/ --recursive ./source/
+    python gen_index.py
 
 debug-build:
     python md2respec.py --pure-html source/starknet/fri.md

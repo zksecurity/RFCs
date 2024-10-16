@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFC Documents</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-8">
+        <h1 class="text-3xl font-bold mb-6">Request for Comments (RFC) Documents</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for rfc in rfcs %}
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-2">{{ rfc.title }}</h2>
+                <p class="text-gray-600">Short Name: {{ rfc.shortName }}</p>
+                <p class="text-gray-600">Editor: {{ rfc.editor }}</p>
+                <p class="text-gray-600">State of This Document: {{ rfc.sotd }}</p>
+                <p class="text-gray-600">Updated: {{ rfc.updated }}</p>
+                <a href="{{ rfc.link }}"
+                    class="mt-4 inline-block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    View RFC
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+
+</html>
