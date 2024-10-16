@@ -1,6 +1,6 @@
 ---
 title: "Starknet STARK Verifier"
-abstract: "TKTK"
+abstract: "In this document we specify the STARK verifier used in Starknet."
 sotd: "none"
 ---
 
@@ -9,6 +9,16 @@ sotd: "none"
 In this section we give an overview of the STARK protocol.
 
 <aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
+
+<aside class="note">
+This protocol is instantiated in several places to our knowledge:
+<ul>
+    <li><a href="https://github.com/starkware-libs/stone-prover/blob/main/src/starkware/main/cpu/cpu_air_verifier_main.cc">C++ implementation</a></li>
+    <li><a href="https://zksecurity.github.io/stark-book/starkex/cairo.html">Solidity implementation</a></li>
+    <li><a href="https://github.com/starkware-libs/cairo-lang/tree/9e6e0e96d208608d98635ccfad5b26285c4936e1/src/starkware/cairo/stark_verifier">Cairo0 implementation</a></li>
+    <li><a href="https://github.com/HerodotusDev/integrity">Cairo1 implementation</a></li>
+</ul>
+</aside>
 
 ### AIR Arithmetization
 
@@ -66,6 +76,34 @@ struct StarkConfig {
     log_n_cosets: felt252,
     // Number of layers that use a verifier friendly hash in each commitment.
     n_verifier_friendly_commitment_layers: felt252,
+}
+```
+
+To validate:
+
+* proof of work is validated as part of the FRI configuration validation
+* compute the log of the evaluation domain size as the log of the trace domain size plus the log of the number of cosets
+  * if every coset is of size $2^{n_e}$ with $n_e$ the `log_trace_domain_size`, and there is $2^{n_c}$ cosets, then the evaluation domain size is expected to be $2^{n_e + n_c}$
+* traces.validate() (TODO)
+* composition.vector.validate()
+* the FRI configuration is validated as part of the FRI configuration validation
+
+```rust
+        self
+            .composition
+            .vector
+            .validate(log_eval_domain_size, *self.n_verifier_friendly_commitment_layers);
+
+        // Validate Fri config.
+        self.fri.validate(*self.log_n_cosets, *self.n_verifier_friendly_commitment_layers);
+
+        // Security bits.
+        let n_queries: u32 = (*self.n_queries).try_into().unwrap();
+        let log_n_cosets: u32 = (*self.log_n_cosets).try_into().unwrap();
+        let proof_of_work_bits: u32 = (*self.proof_of_work.n_bits).try_into().unwrap();
+
+        n_queries * log_n_cosets + proof_of_work_bits
+    }
 }
 ```
 
@@ -150,9 +188,9 @@ The protocol is split into 3 core functions:
 One can successively call them in the following order to verify a proof:
 
 1. Call `verify_initial` on the proof and return:
-   1. the FriVerificationStateConstant object
-   2. the FriVerificationStateVariable object
-   3. the last_layer_coefficients
+   1. the `FriVerificationStateConstant` object
+   2. the `FriVerificationStateVariable` object
+   3. the `last_layer_coefficients`
    4. the security bits <-- TODO: remove this?
 2. Call verify_step in a loop on each layer of the proof (`n_layers` of them according to the StateConstant returned) and pass the FriVerificationStateVariable in between each calls
 3. Call verify_final on the StateConstant and StateVariable objects

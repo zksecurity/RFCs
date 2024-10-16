@@ -83,7 +83,7 @@
 
 <body>
     <section id="abstract">
-        <p>TKTK</p>
+        <p>In this document we specify the STARK verifier used in Starknet.</p>
     </section>
     <section id="sotd">
         <p>none</p>
@@ -92,6 +92,16 @@
 <h2>Overview</h2>
 <p>In this section we give an overview of the STARK protocol.</p>
 <aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
+
+<aside class="note">
+This protocol is instantiated in several places to our knowledge:
+<ul>
+    <li><a href="https://github.com/starkware-libs/stone-prover/blob/main/src/starkware/main/cpu/cpu_air_verifier_main.cc">C++ implementation</a></li>
+    <li><a href="https://zksecurity.github.io/stark-book/starkex/cairo.html">Solidity implementation</a></li>
+    <li><a href="https://github.com/starkware-libs/cairo-lang/tree/9e6e0e96d208608d98635ccfad5b26285c4936e1/src/starkware/cairo/stark_verifier">Cairo0 implementation</a></li>
+    <li><a href="https://github.com/HerodotusDev/integrity">Cairo1 implementation</a></li>
+</ul>
+</aside>
 
 <section>
 <h3>AIR Arithmetization</h3>
@@ -151,6 +161,32 @@
     log_n_cosets: felt252,
     // Number of layers that use a verifier friendly hash in each commitment.
     n_verifier_friendly_commitment_layers: felt252,
+}
+</code></pre>
+<p>To validate:</p>
+<ul>
+<li>proof of work is validated as part of the FRI configuration validation</li>
+<li>compute the log of the evaluation domain size as the log of the trace domain size plus the log of the number of cosets</li>
+<li>if every coset is of size <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>e</mi></msub></mrow></msup></mrow></math> with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>n</mi><mi>e</mi></msub></mrow></math> the <code>log_trace_domain_size</code>, and there is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>c</mi></msub></mrow></msup></mrow></math> cosets, then the evaluation domain size is expected to be <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>e</mi></msub><mo>&#x0002B;</mo><msub><mi>n</mi><mi>c</mi></msub></mrow></msup></mrow></math></li>
+<li>traces.validate() (TODO)</li>
+<li>composition.vector.validate()</li>
+<li>the FRI configuration is validated as part of the FRI configuration validation</li>
+</ul>
+<pre><code class="language-rust">        self
+            .composition
+            .vector
+            .validate(log_eval_domain_size, *self.n_verifier_friendly_commitment_layers);
+
+        // Validate Fri config.
+        self.fri.validate(*self.log_n_cosets, *self.n_verifier_friendly_commitment_layers);
+
+        // Security bits.
+        let n_queries: u32 = (*self.n_queries).try_into().unwrap();
+        let log_n_cosets: u32 = (*self.log_n_cosets).try_into().unwrap();
+        let proof_of_work_bits: u32 = (*self.proof_of_work.n_bits).try_into().unwrap();
+
+        n_queries * log_n_cosets + proof_of_work_bits
+    }
 }
 </code></pre>
 </section>
@@ -234,9 +270,9 @@ struct StarkUnsentCommitment {
 <p>One can successively call them in the following order to verify a proof:</p>
 <ol>
 <li>Call <code>verify_initial</code> on the proof and return:</li>
-<li>the FriVerificationStateConstant object</li>
-<li>the FriVerificationStateVariable object</li>
-<li>the last_layer_coefficients</li>
+<li>the <code>FriVerificationStateConstant</code> object</li>
+<li>the <code>FriVerificationStateVariable</code> object</li>
+<li>the <code>last_layer_coefficients</code></li>
 <li>the security bits &lt;-- TODO: remove this?</li>
 <li>Call verify_step in a loop on each layer of the proof (<code>n_layers</code> of them according to the StateConstant returned) and pass the FriVerificationStateVariable in between each calls</li>
 <li>Call verify_final on the StateConstant and StateVariable objects</li>

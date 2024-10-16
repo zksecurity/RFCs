@@ -143,6 +143,7 @@ assert find_gen2(3)^8 == 1
 </section>
 <section>
 <h4>Reduction</h4>
+<p><img alt="folding" src="/RFCs/img/starknet/fri/folding.png" /></p>
 <p>A reduction in the FRI protocol is obtained by interpreting an input polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>p</mi></mrow></math> as a polynomial of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>2</mn><mi>n</mi></mrow></math> and splitting it into two polynomials <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>g</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi></mrow></math> of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>n</mi></mrow></math> such that <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>p</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mi>g</mi><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><mi>h</mi><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math>.</p>
 <p>Then, with the help of a verifier's random challenge <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B6;</mi></mrow></math>, we can produce a random linear combination of these polynomials to obtain a new polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>g</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>&#x003B6;</mi><mi>h</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>n</mi></mrow></math>:</p>
 <pre><code class="language-py">def split_poly(p, remove_square=True):
@@ -152,7 +153,7 @@ assert find_gen2(3)^8 == 1
     # at this point g and h are still around the same degree of p
     # we need to replace x^2 by x for FRI to (as we want to halve the degrees!)
     if remove_square:
-        g = g.parent(g.list()[::2]) # &lt;-- (using python's &lt;!--CODE_BLOCK_22--&gt; syntax)
+        g = g.parent(g.list()[::2]) # &lt;-- (using python's &lt;!--CODE_BLOCK_27--&gt; syntax)
         h = h.parent(h.list()[::2])
         assert g.degree() == h.degree() == p.degree() // 2
         assert p(7) == g(7^2) + 7 * h(7^2)
@@ -193,6 +194,7 @@ assert p3.degree() == 0
 </section>
 <section>
 <h4>Queries</h4>
+<p><img alt="queries" src="/RFCs/img/starknet/fri/queries.png" /></p>
 <p>In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represent the proper reduction of the previous layer's polynomial. To do that, they "query" commitments of the different polynomials of the different layers at points/evaluations. Let's see how this works.</p>
 <p>Given a polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>g</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math> and two of its evaluations at some points <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>, we can see that the verifier can recover the two halves by computing:</p>
 <ul>
@@ -233,6 +235,7 @@ assert p3 == g2_square + zeta2 * h2_square # we already received p3 at the end o
 </section>
 <section>
 <h4>Skipping FRI layers</h4>
+<p><img alt="skipped layers" src="/RFCs/img/starknet/fri/skipped_layers.png" /></p>
 <p>Section 3.11.1 "Skipping FRI Layers" of the ethSTARK paper describes an optimization which skips some of the layers/rounds. The intuition is the following: if we removed the first round commitment (to the polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub></mrow></math>), then the verifier would not be able to:</p>
 <ul>
 <li>query <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math> to verify that layer</li>
