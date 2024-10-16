@@ -47,7 +47,7 @@ A `n_verifier_friendly_layers` variable can be passed which dictates at which la
 
 In the following example, the height of the table commitment is $6$ (and the height of the vector commitment is $5$). As such, a `n_verifier_friendly_layers` of $6$ would mean that only the table would use the verifier-friendly hash. A `n_verifier_friendly_layers` of $5$ would mean that the last / bottom layer of the Merkle tree would also use the verifier-friendly hash. A `n_verifier_friendly_layers` of $1$ would mean that all layers would use the verifier-friendly hash.
 
-![vector decommit](/img/starknet/fri/vector_decommit.png)
+![vector decommit](/img/starknet/fri/tree_height.png)
 
 ### Note on commitment multiple evaluations under the same leaf
 
