@@ -73,7 +73,7 @@
         <p>TKTK</p>
     </section>
     <section id="sotd">
-        <p>none</p>
+        <p>draft</p>
     </section>
     <section>
 <h2>Overview</h2>
@@ -81,21 +81,36 @@
 <ul>
 <li>TODO: why montgomery form?</li>
 </ul>
+</section>
 <section>
-<h3>Table commitments</h3>
+<h2>Dependencies</h2>
+<p>TODO: hash</p>
+</section>
+<section>
+<h2>Table commitments</h2>
 <p>A table commitment in this context is a vector commitment where leaves are potentially hashes of several values (tables of multiple columns and a single row).</p>
 </section>
 <section>
-<h3>Vector commitments</h3>
+<h2>Vector commitments</h2>
 <p>A vector commitment is simply a Merkle tree. </p>
-<p>TODO: diagram.</p>
+<p><img alt="tree indexing" src="/RFCs/img/starknet/fri/tree_indexing.png" /></p>
 <p><img alt="vector commit" src="/RFCs/img/starknet/fri/vector_commit.png" /></p>
 </section>
 <section>
-<h3>Vector membership proofs</h3>
+<h2>Index to Path conversion</h2>
+<p>Random evaluation of the polynomial might produce an index in the range <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">[</mo><mn>0</mn><mo>&#x0002C;</mo><msup><mn>2</mn><mi>h</mi></msup><mo stretchy="false">&#x00029;</mo></mrow></math> with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi></mrow></math> the height of the tree. Due to the way the tree is indexed, we have to convert that index into a path. To do that, the index is added with the value <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mi>h</mi></msup></mrow></math> to set its MSB.</p>
+<p>For example, the index <code>0</code> becomes the path <code>10000</code> which correctly points to the first leaf in our example.</p>
+</section>
+<section>
+<h2>Vector membership proofs</h2>
 <p>A vector decommitment/membership proof must provide a witness (the neighbor nodes missing to compute the root of the Merkle tree) ordered in a specific way. The following algorithm dictates in which order the nodes hash values provided in the proof are consumed:</p>
 <p><img alt="vector decommit" src="/RFCs/img/starknet/fri/vector_decommit.png" /></p>
 </section>
+<section>
+<h2>Verifier-Friendly Layers</h2>
+<p>A <code>n_verifier_friendly_layers</code> variable can be passed which dictates at which layer the Merkle tree starts using a verifier-friendly hash.</p>
+<p>In the following example, the height of the table commitment is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>6</mn></mrow></math> (and the height of the vector commitment is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>5</mn></mrow></math>). As such, a <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>6</mn></mrow></math> would mean that only the table would use the verifier-friendly hash. A <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>5</mn></mrow></math> would mean that the last / bottom layer of the Merkle tree would also use the verifier-friendly hash. A <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>1</mn></mrow></math> would mean that all layers would use the verifier-friendly hash.</p>
+<p><img alt="vector decommit" src="/RFCs/img/starknet/fri/vector_decommit.png" /></p>
 <section>
 <h3>Note on commitment multiple evaluations under the same leaf</h3>
 <ul>

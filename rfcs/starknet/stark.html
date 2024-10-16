@@ -154,7 +154,7 @@ This protocol is instantiated in several places to our knowledge:
 <ul>
 <li>proof of work is validated as part of the FRI configuration validation</li>
 <li>compute the log of the evaluation domain size as the log of the trace domain size plus the log of the number of cosets</li>
-<li>if every coset is of size <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>e</mi></msub></mrow></msup></mrow></math> with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>n</mi><mi>e</mi></msub></mrow></math> the <code>log_trace_domain_size</code>, and there is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>c</mi></msub></mrow></msup></mrow></math> cosets, then the evaluation domain size is expected to be <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>e</mi></msub><mo>&#x0002B;</mo><msub><mi>n</mi><mi>c</mi></msub></mrow></msup></mrow></math></li>
+<li>if every coset is of size <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>t</mi></msub></mrow></msup></mrow></math> with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>n</mi><mi>t</mi></msub></mrow></math> the <code>log_trace_domain_size</code>, and there is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>c</mi></msub></mrow></msup></mrow></math> cosets, then the evaluation domain size is expected to be <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>t</mi></msub><mo>&#x0002B;</mo><msub><mi>n</mi><mi>c</mi></msub></mrow></msup></mrow></math> (TODO: explain why we talk about cosets here)</li>
 <li>traces.validate() (TODO)</li>
 <li>composition.vector.validate()</li>
 <li>the FRI configuration is validated as part of the FRI configuration validation</li>
@@ -198,8 +198,15 @@ struct StarkUnsentCommitment {
 }
 </code></pre>
 <section>
-<h3>Domain</h3>
-<p>TODO: StarkDomainsImpl::new() </p>
+<h3>Trace and Evaluation Domains</h3>
+<p>TODO: is this section useful?</p>
+<p>There are three types of domains:</p>
+<ol>
+<li>The trace domain, this is the domain chosen to evaluate the execution trace polynomials. It is typically the smallest subgroup of order <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>t</mi></msub></mrow></msup></mrow></math> for some <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>n</mi><mi>t</mi></msub></mrow></math>, such that it can include all the constraints.</li>
+<li>The evaluation domain, which is chosen as a subgroup of a power of two <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>e</mi></msub></mrow></msup></mrow></math> that encompasses the trace domain (i.e. <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>e</mi><mo>&#x02265;</mo><mi>t</mi></mrow></math>). The "blown up factor" typically dictates how much larger the evaluation domain as a multiple.
+(TODO: and then typically moved to a coset). (TODO: why n_cosets then? can this be seen as a union of cosets formed from the trace domain?)</li>
+</ol>
+<p>As such, the generator of the trace domain can be found as <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mi>e</mi></msub><mo>&#x0003D;</mo><msup><mn>3</mn><mrow><mo stretchy="false">&#x00028;</mo><mi>p</mi><mo>&#x02212;</mo><mn>1</mn><mo stretchy="false">&#x00029;</mo><mo>&#x0002F;</mo><msub><mi>n</mi><mi>t</mi></msub></mrow></msup></mrow></math> (since <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C9;</mi><mrow><mi>e</mi></mrow><mrow><msub><mi>n</mi><mi>t</mi></msub></mrow></msubsup><mo>&#x0003D;</mo><mn>1</mn></mrow></math>), and the generator of the evaluation domain can be found as <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C9;</mi><mo>&#x0003D;</mo><msup><mn>3</mn><mrow><mo stretchy="false">&#x00028;</mo><mi>p</mi><mo>&#x02212;</mo><mn>1</mn><mo stretchy="false">&#x00029;</mo><mo>&#x0002F;</mo><msub><mi>n</mi><mi>e</mi></msub></mrow></msup></mrow></math>.</p>
 </section>
 <section>
 <h3>STARK commit</h3>
@@ -218,7 +225,7 @@ struct StarkUnsentCommitment {
 </ol>
 </section>
 <section>
-<h3>STARK verify (TODO: consolidate with above)</h3>
+<h3>STARK verify</h3>
 <p>The goal of STARK verify is to verify evaluation queries (by checking that evaluations exist in the committed polynomials) and the FRI queries (by running the FRI verification).</p>
 <p>To do this, we simply call the <code>fri_verify_initial</code> function contained in the FRI specification, and giving it the following oracle:</p>
 <p>The oracle should provide the evaluations, under the same set of FRI queries (and specifically the point they are requesting the evaluations at) of the following polynomials:</p>
