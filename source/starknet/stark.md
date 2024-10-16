@@ -86,7 +86,7 @@ To validate:
 
 * proof of work is validated as part of the FRI configuration validation
 * compute the log of the evaluation domain size as the log of the trace domain size plus the log of the number of cosets
-  * if every coset is of size $2^{n_e}$ with $n_e$ the `log_trace_domain_size`, and there is $2^{n_c}$ cosets, then the evaluation domain size is expected to be $2^{n_e + n_c}$
+  * if every coset is of size $2^{n_t}$ with $n_t$ the `log_trace_domain_size`, and there is $2^{n_c}$ cosets, then the evaluation domain size is expected to be $2^{n_t + n_c}$ (TODO: explain why we talk about cosets here)
 * traces.validate() (TODO)
 * composition.vector.validate()
 * the FRI configuration is validated as part of the FRI configuration validation
@@ -132,9 +132,17 @@ struct StarkUnsentCommitment {
 }
 ```
 
-### Domain
+### Trace and Evaluation Domains
 
-TODO: StarkDomainsImpl::new() 
+TODO: is this section useful?
+
+There are three types of domains:
+
+1. The trace domain, this is the domain chosen to evaluate the execution trace polynomials. It is typically the smallest subgroup of order $2^{n_t}$ for some $n_t$, such that it can include all the constraints.
+2. The evaluation domain, which is chosen as a subgroup of a power of two $2^{n_e}$ that encompasses the trace domain (i.e. $e \geq t$). The "blown up factor" typically dictates how much larger the evaluation domain as a multiple.
+(TODO: and then typically moved to a coset). (TODO: why n_cosets then? can this be seen as a union of cosets formed from the trace domain?)
+
+As such, the generator of the trace domain can be found as $\omega_e =3^{(p-1)/n_t}$ (since $\omega_{e}^{n_t} = 1$), and the generator of the evaluation domain can be found as $\omega = 3^{(p-1)/n_e}$.
 
 ### STARK commit
 
@@ -151,7 +159,7 @@ The goal of the STARK commit is to process all of the commitments produced by th
 9. Sample the oods_alpha challenge with the channel.
 10. Call `fri_commit`
 
-### STARK verify (TODO: consolidate with above)
+### STARK verify
 
 The goal of STARK verify is to verify evaluation queries (by checking that evaluations exist in the committed polynomials) and the FRI queries (by running the FRI verification).
 
