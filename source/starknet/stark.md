@@ -2,6 +2,8 @@
 title: "Starknet STARK Verifier"
 abstract: "In this document we specify the STARK verifier used in Starknet."
 sotd: "none"
+shortName: "starknet-stark"
+editor: "David Wong"
 ---
 
 ## Overview

@@ -33,6 +33,8 @@ def convert_markdown_to_html(markdown_file, config):
         "title": post.get("title", "title not present"),
         "abstract": post.get("abstract", "abstract not present"),
         "sotd": post.get("sotd", "sotd not present"),
+        "shortName": post.get("shortName", "shortName not present"),
+        "editor": post.get("editor", "editor not present"),
     }
 
     # Convert Markdown to HTML

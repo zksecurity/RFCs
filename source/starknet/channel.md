@@ -2,6 +2,8 @@
 title: "Starknet Channel"
 abstract: "TKTK"
 sotd: "none"
+shortName: "starknet-channel"
+editor: "David Wong"
 ---
 
 ## Overview

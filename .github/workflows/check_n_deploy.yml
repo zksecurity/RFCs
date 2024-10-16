@@ -1,4 +1,4 @@
-name: Build and Check for Changes
+name: Build and Deploy
 
 permissions:
   contents: write
