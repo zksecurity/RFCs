@@ -6,6 +6,8 @@ abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximi
 
 <aside class=\"note\">Specifically, it matches the [integrity verifier](https://github.com/HerodotusDev/integrity/tree/main/src) which is a Cairo implementation of a Cairo verifier. There might be important differences with the Cairo verifier implemented in C++ or Solidity.</aside>"
 sotd: "none"
+shortName: "starknet-fri"
+editor: "David Wong"
 ---
 
 ## Overview
