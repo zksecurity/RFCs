@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Starknet Merkle Tree Polynomial Commitments</title>
+    <script src="https://www.w3.org/Tools/respec/respec-w3c" class="remove" defer></script>
+
+    <!-- syntax highlighting -->
+    <script class='remove'>
+        async function loadRust() {
+            //this is the function you call in 'preProcess', to load the highlighter
+            const worker = await new Promise(resolve => {
+                require(["core/worker"], ({ worker }) => resolve(worker));
+            });
+            const action = "highlight-load-lang";
+            const langURL =
+                "https://gistcdn.githack.com/mimoo/a9e28fc565dddb369477e8bd34e6a1ae/raw/d8a7057fe9c7140f7ef5972b333716d9933fa29b/hljs-rust.js";
+            const propName = "hljsDefineRust"; // This funtion is defined in the highlighter being loaded
+            const lang = "language-rust"; // this is the class you use to identify the language
+            worker.postMessage({ action, langURL, propName, lang });
+            return new Promise(resolve => {
+                worker.addEventListener("message", function listener({ data }) {
+                    const { action: responseAction, lang: responseLang } = data;
+                    if (responseAction === action && responseLang === lang) {
+                        worker.removeEventListener("message", listener);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        async function loadPython() {
+            const worker = await new Promise(resolve => {
+                require(["core/worker"], ({ worker }) => resolve(worker));
+            });
+            const action = "highlight-load-lang";
+            const langURL =
+                "https://gistcdn.githack.com/mimoo/fd9652b0c0d64bfc9f8cae69c72030b1/raw/2315322f87ba81c92c22477a05da6c4181f02df2/respec-py.js"; // URL to Python highlighter
+            const propName = "hljsDefinePython"; // Adjust this if needed
+            const lang = "language-py";
+            worker.postMessage({ action, langURL, propName, lang });
+            return new Promise(resolve => {
+                worker.addEventListener("message", function listener({ data }) {
+                    if (data.action === action && data.lang === lang) {
+                        worker.removeEventListener("message", listener);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        var respecConfig = {
+            preProcess: [loadRust, loadPython],
+            specStatus: "unofficial",
+            latestVersion: null,
+            license: "cc0",
+            editors: [
+                {
+                    name: "David Wong",
+                    url: "https://www.zksecurity.xyz",
+                },
+            ],
+            github: "zksecurity/RFCs",
+            shortName: "starknet-commit",
+        };
+    </script>
+
+</head>
+
+<body>
+    <section id="abstract">
+        <p>TKTK</p>
+    </section>
+    <section id="sotd">
+        <p>none</p>
+    </section>
+    <section>
+<h2>Overview</h2>
+<p>Commitments of polynomials are done using <a href="">Merkle trees</a>. The Merkle trees can be configured to hash some parameterized number of the lower layers using a circuit-friendly hash function (Poseidon).</p>
+<ul>
+<li>TODO: why montgomery form?</li>
+</ul>
+<section>
+<h3>Table commitments</h3>
+<p>A table commitment in this context is a vector commitment where leaves are potentially hashes of several values (tables of multiple columns and a single row).</p>
+</section>
+<section>
+<h3>Vector commitments</h3>
+<p>A vector commitment is simply a Merkle tree. </p>
+<p>TODO: diagram.</p>
+<p><img alt="vector commit" src="/RFCs/img/starknet/fri/vector_commit.png" /></p>
+</section>
+<section>
+<h3>Vector membership proofs</h3>
+<p>A vector decommitment/membership proof must provide a witness (the neighbor nodes missing to compute the root of the Merkle tree) ordered in a specific way. The following algorithm dictates in which order the nodes hash values provided in the proof are consumed:</p>
+<p><img alt="vector decommit" src="/RFCs/img/starknet/fri/vector_decommit.png" /></p>
+</section>
+<section>
+<h3>Note on commitment multiple evaluations under the same leaf</h3>
+<ul>
+<li>the following array contains all the 16-th roots of unity, handily ordered</li>
+<li>that is, the first represents the subgroup of order 1, the two first values represent the subgroup of order 2, the four first values represent the subgroup of order 4, and so on</li>
+<li>furthermore, these values are chosen in relation to how evaluations are ordered in a leaf of a commitment</li>
+<li>each value tells you exactly what to multiply to 1/(something*x) to obtain 1/(x)</li>
+<li>TODO: but wait, how is inv_x obtained... that doesn't make sense no?</li>
+<li>it seems like the following values are used to "correct" the x value depending on where x pointed at</li>
+</ul>
+<pre><code>array![
+    0x1,
+    0x800000000000011000000000000000000000000000000000000000000000000,
+    0x625023929a2995b533120664329f8c7c5268e56ac8320da2a616626f41337e3,
+    0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e,
+    0x63365fe0de874d9c90adb1e2f9c676e98c62155e4412e873ada5e1dee6feebb,
+    0x1cc9a01f2178b3736f524e1d06398916739deaa1bbed178c525a1e211901146,
+    0x3b912c31d6a226e4a15988c6b7ec1915474043aac68553537192090b43635cd,
+    0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df6f4bc9ca34,
+    0x5ec467b88826aba4537602d514425f3b0bdf467bbf302458337c45f6021e539,
+    0x213b984777d9556bac89fd2aebbda0c4f420b98440cfdba7cc83ba09fde1ac8,
+    0x5ce3fa16c35cb4da537753675ca3276ead24059dddea2ca47c36587e5a538d1,
+    0x231c05e93ca34c35ac88ac98a35cd89152dbfa622215d35b83c9a781a5ac730,
+    0x00b54759e8c46e1258dc80f091e6f3be387888015452ce5f0ca09ce9e571f52,
+    0x7f4ab8a6173b92fda7237f0f6e190c41c78777feabad31a0f35f63161a8e0af,
+    0x23c12f3909539339b83645c1b8de3e14ebfee15c2e8b3ad2867e3a47eba558c,
+    0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75,
+]
+</code></pre>
+<ul>
+<li>that is, if x pointed at the beginning of a coset, then we don't need to correct it (the first evaluation committed to contains x)</li>
+<li>but if x pointed at the first value, it actually points to an evaluation of -x, so we need to correct the -x we have by multiplying with -1 again so that we get x (or -1/x becomes 1/x, same thing)</li>
+<li>if x points to the 2 value, then</li>
+</ul>
+</section>
+</section>
+</body>
+
+</html>

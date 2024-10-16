@@ -73,7 +73,7 @@
         <p>In this document we specify the STARK verifier used in Starknet.</p>
     </section>
     <section id="sotd">
-        <p>none</p>
+        <p>draft</p>
     </section>
     <section>
 <h2>Overview</h2>
@@ -95,7 +95,7 @@ This protocol is instantiated in several places to our knowledge:
 <p>TKTK</p>
 </section>
 <section>
-<h3>Interactive Arithemtization</h3>
+<h3>Interactive Arithmetization</h3>
 <p>TKTK</p>
 </section>
 <section>
@@ -203,6 +203,7 @@ struct StarkUnsentCommitment {
 </section>
 <section>
 <h3>STARK commit</h3>
+<p>The goal of the STARK commit is to process all of the commitments produced by the prover during the protocol (including the FRI commitments), as well as produce the verifier challenges:</p>
 <ol>
 <li>Absorb the original table with the channel.</li>
 <li>Sample the interaction challenges (e.g. z and alpha for the memory check argument (different alpha called memory_alpha to distinguish it from the alpha used to aggregate the different constraints into the composition polynomial)).</li>
@@ -218,32 +219,16 @@ struct StarkUnsentCommitment {
 </section>
 <section>
 <h3>STARK verify (TODO: consolidate with above)</h3>
-<p>in <code>src/stark/stark_verify.cairo</code>:</p>
-<p>stark_verify takes these inputs:</p>
+<p>The goal of STARK verify is to verify evaluation queries (by checking that evaluations exist in the committed polynomials) and the FRI queries (by running the FRI verification).</p>
+<p>To do this, we simply call the <code>fri_verify_initial</code> function contained in the FRI specification, and giving it the following oracle:</p>
+<p>The oracle should provide the evaluations, under the same set of FRI queries (and specifically the point they are requesting the evaluations at) of the following polynomials:</p>
 <ul>
-<li>queries (array of FE)</li>
-<li>commitment</li>
-<li>witness</li>
-<li>stark_domains</li>
+<li>the traces polynomials, which include both the original trace polynomial and the interaction trace polynomial)</li>
+<li>the composition column polynomials</li>
 </ul>
-<p>algorithm:</p>
-<ol>
-<li>traces_decommit()</li>
-<li>table_decommit() (different depending on layout)</li>
-<li>points = queries_to_points(queries, stark_domains)</li>
-<li>eval_oods_boundary_poly_at_points()</li>
-<li>fri_verify()</li>
-</ol>
-<p>actually, this is wrapped into StarKProofImpl::verify:</p>
-<ol>
-<li>cfg.validate(security_bits)</li>
-<li>cfg.public_input.validate(stark_domains)</li>
-<li>digest = get_public_input_hash(public_input) &lt;-- what is the public input exactly? (should be program + inputs (+outputs?))</li>
-<li>channel = ChannelImpl::new(digest) &lt;-- statement is a digest of the public_input</li>
-<li>stark_commitment = stark_commit()</li>
-<li>queries = generate_queries()</li>
-<li>stark_verify()</li>
-</ol>
+<p>In addition the oracle should verify decommitment proofs (Merkle membership proofs) for each of these evaluations. We refer to the <a href="polynomial_commitment.html">Merkle Tree Polynomial Commitments specification</a> on how to verify evaluation proofs.</p>
+<aside class="warning">The logic of the oracle must be implemented as part of the verification. The term "oracle" simply refers to an opaque callback function from the FRI protocol's perspective.</aside>
+
 </section>
 </section>
 <section>
@@ -273,8 +258,7 @@ struct StarkUnsentCommitment {
 <li>Validate the public input (TODO: specify an external function for that?).</li>
 <li>Compute the initial digest as <code>get_public_input_hash(public_input, cfg.n_verifier_friendly_commitment_layers, settings)</code> (TODO: define external function for that).</li>
 <li>Initialize the channel using the digest as defined in the <a href="#channel">Channel</a> section.</li>
-<li>Call stark commit as defined in the <a href="#stark-commit">STARK commit</a> section.</li>
-<li>Call fri_commit as defined in the <a href="#fri">FRI</a> section.</li>
+<li>Call STARK commit as defined in the <a href="#stark-commit">STARK commit</a> section.</li>
 <li>Call STARK verify as defined in the <a href="#stark-verify">STARK verify</a> section.</li>
 </ol>
 </section>

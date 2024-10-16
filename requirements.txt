@@ -1,3 +1,4 @@
 python-frontmatter
 Markdown
 latex2mathml
+jinja2

@@ -1,9 +1,10 @@
 ---
 title: "Starknet STARK Verifier"
 abstract: "In this document we specify the STARK verifier used in Starknet."
-sotd: "none"
+sotd: "draft"
 shortName: "starknet-stark"
 editor: "David Wong"
+tags: ["starknet", "stark", "ethSTARK"]
 ---
 
 ## Overview
@@ -26,7 +27,7 @@ This protocol is instantiated in several places to our knowledge:
 
 TKTK
 
-### Interactive Arithemtization
+### Interactive Arithmetization
 
 TKTK
 
@@ -109,8 +110,6 @@ To validate:
 }
 ```
 
-
-
 ## Main STARK functions / Buiding blocks
 
 ```rust
@@ -139,6 +138,8 @@ TODO: StarkDomainsImpl::new()
 
 ### STARK commit
 
+The goal of the STARK commit is to process all of the commitments produced by the prover during the protocol (including the FRI commitments), as well as produce the verifier challenges:
+
 1. Absorb the original table with the channel.
 2. Sample the interaction challenges (e.g. z and alpha for the memory check argument (different alpha called memory_alpha to distinguish it from the alpha used to aggregate the different constraints into the composition polynomial)).
 3. Absorb the interaction table with the channel.
@@ -152,32 +153,18 @@ TODO: StarkDomainsImpl::new()
 
 ### STARK verify (TODO: consolidate with above)
 
-in `src/stark/stark_verify.cairo`:
+The goal of STARK verify is to verify evaluation queries (by checking that evaluations exist in the committed polynomials) and the FRI queries (by running the FRI verification).
 
-stark_verify takes these inputs:
+To do this, we simply call the `fri_verify_initial` function contained in the FRI specification, and giving it the following oracle:
 
-* queries (array of FE)
-* commitment
-* witness
-* stark_domains
+The oracle should provide the evaluations, under the same set of FRI queries (and specifically the point they are requesting the evaluations at) of the following polynomials:
 
-algorithm:
+* the traces polynomials, which include both the original trace polynomial and the interaction trace polynomial)
+* the composition column polynomials
 
-1. traces_decommit()
-2. table_decommit() (different depending on layout)
-3. points = queries_to_points(queries, stark_domains)
-4. eval_oods_boundary_poly_at_points()
-5. fri_verify()
+In addition the oracle should verify decommitment proofs (Merkle membership proofs) for each of these evaluations. We refer to the [Merkle Tree Polynomial Commitments specification](polynomial_commitment.html) on how to verify evaluation proofs.
 
-actually, this is wrapped into StarKProofImpl::verify:
-
-1. cfg.validate(security_bits)
-2. cfg.public_input.validate(stark_domains)
-3. digest = get_public_input_hash(public_input) <-- what is the public input exactly? (should be program + inputs (+outputs?))
-4. channel = ChannelImpl::new(digest) <-- statement is a digest of the public_input
-5. stark_commitment = stark_commit()
-6. queries = generate_queries()
-7. stark_verify()
+<aside class="warning">The logic of the oracle must be implemented as part of the verification. The term "oracle" simply refers to an opaque callback function from the FRI protocol's perspective.</aside>
 
 ## Full Protocol
 
@@ -206,6 +193,5 @@ The verify initial function is defined as:
 1. Validate the public input (TODO: specify an external function for that?).
 1. Compute the initial digest as `get_public_input_hash(public_input, cfg.n_verifier_friendly_commitment_layers, settings)` (TODO: define external function for that).
 1. Initialize the channel using the digest as defined in the [Channel](#channel) section.
-1. Call stark commit as defined in the [STARK commit](#stark-commit) section.
-1. Call fri_commit as defined in the [FRI](#fri) section.
+1. Call STARK commit as defined in the [STARK commit](#stark-commit) section.
 1. Call STARK verify as defined in the [STARK verify](#stark-verify) section.
