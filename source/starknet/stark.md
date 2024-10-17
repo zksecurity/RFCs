@@ -25,6 +25,8 @@ This protocol is instantiated in several places to our knowledge:
 </ul>
 </aside>
 
+![STARK overview](/img/starknet/stark_overview.png)
+
 ### AIR Arithmetization
 
 TKTK

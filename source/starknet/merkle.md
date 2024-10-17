@@ -26,9 +26,9 @@ Commitments of polynomials are done using [Merkle trees](https://en.wikipedia.or
 
 A vector commitment is simply a Merkle tree. 
 
-![tree indexing](/img/starknet/fri/tree_indexing.png)
+![tree indexing](/img/starknet/tree_indexing.png)
 
-![vector commit](/img/starknet/fri/vector_commit.png)
+![vector commit](/img/starknet/vector_commit.png)
 
 ## Table commitments
 
@@ -52,7 +52,7 @@ For example, the index `0` becomes the path `10000` which correctly points to th
 
 A vector decommitment/membership proof must provide a witness (the neighbor nodes missing to compute the root of the Merkle tree) ordered in a specific way. The following algorithm dictates in which order the nodes hash values provided in the proof are consumed:
 
-![vector decommit](/img/starknet/fri/vector_decommit.png)
+![vector decommit](/img/starknet/vector_decommit.png)
 
 ## Verifier-Friendly Layers
 
@@ -60,7 +60,7 @@ A `n_verifier_friendly_layers` variable can be passed which dictates at which la
 
 In the following example, the height of the table commitment is $6$ (and the height of the vector commitment is $5$). As such, a `n_verifier_friendly_layers` of $6$ would mean that only the table would use the verifier-friendly hash. A `n_verifier_friendly_layers` of $5$ would mean that the last / bottom layer of the Merkle tree would also use the verifier-friendly hash. A `n_verifier_friendly_layers` of $1$ would mean that all layers would use the verifier-friendly hash.
 
-![vector decommit](/img/starknet/fri/tree_height.png)
+![vector decommit](/img/starknet/tree_height.png)
 
 ### Note on commitment multiple evaluations under the same leaf
 
