@@ -9,6 +9,8 @@ tags: ["starknet", "fiat-shamir"]
 
 ## Overview
 
+<aside class="warning">This specification is work-in-progress.</aside>
+
 A channel is an object that mimics the communication channel between the prover and the verifier, and is used to abstract the [Fiat-Shamir transformation](https://en.wikipedia.org/wiki/Fiat%E2%80%93Shamir_heuristic) used to make the protocol non-interactive.
 
 The Fiat-Shamir transformation works on public-coin protocols, in which the messages of the verifier are pure random values. To work, the Fiat-Shamir transformation replaces the verifier messages with a hash function applied over the transcript up to that point.

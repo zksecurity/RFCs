@@ -13,6 +13,8 @@ tags: ["starknet", "fri"]
 
 ## Overview
 
+<aside class="warning">This specification is work-in-progress.</aside>
+
 We briefly give an overview of the FRI protocol, before specifying how it is used in the StarkNet protocol.
 
 ### FRI
@@ -355,8 +357,6 @@ We use the following constants throughout the protocol.
 **`MAX_FRI_LAYERS = 15`**. The maximum number of layers in the FRI protocol. This means that the protocol can test that committed polynomials exist and are of degree at most $2^{15}$. (TODO: double check)
 
 **`MAX_FRI_STEP = 4`**. The maximum number of layers that can be skipped in FRI (see the overview for more details).
-
-**`MONTGOMERY_R = 3618502788666127798953978732740734578953660990361066340291730267701097005025`**. The Montgomery form of $2^{256} \mod \text{STARK_PRIME}$:
 
 ### TODO: Step generators
 
