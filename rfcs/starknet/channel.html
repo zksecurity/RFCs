@@ -70,38 +70,57 @@
 
 <body>
     <section id="abstract">
-        <p>TKTK</p>
+        <p>Channels are an abstraction used to mimic the communication channel between the prover and the verifier in a non-interactive protocol. It is useful to ensure that all prover messages are correctly absorbed before being used by the verifier, and that all verifier challenges are correctly produced.</p>
     </section>
     <section id="sotd">
         <p>draft</p>
     </section>
     <section>
 <h2>Overview</h2>
-<p>A channel is an object that mimics the communication channel between the prover and the verifier, and is used to abstract the <a href="">Fiat-Shamir transformation</a> used to make the protocol non-interactive (the verifier messages are replaced by sampling a hash function).</p>
+<p>A channel is an object that mimics the communication channel between the prover and the verifier, and is used to abstract the <a href="https://en.wikipedia.org/wiki/Fiat%E2%80%93Shamir_heuristic">Fiat-Shamir transformation</a> used to make the protocol non-interactive.</p>
+<p>The Fiat-Shamir transformation works on public-coin protocols, in which the messages of the verifier are pure random values. To work, the Fiat-Shamir transformation replaces the verifier messages with a hash function applied over the transcript up to that point.</p>
 <p>A channel is initialized at the beginning of the protocol, and is instantiated with a hash function. It is implemented as a continuous hash that "absorbs" every prover messages and which output can be used to produce the verifier's challenges.</p>
+</section>
+<section>
+<h2>Dependencies</h2>
+<p>A channel is instantiated with the following two dependencies:</p>
+<ul>
+<li><code>hades_permutation(s1, s2, s3)</code>. The hades permutation which permutates a given state of three field elements.</li>
+<li><code>poseidon_hash_span(field_elements)</code>. The poseidon sponge function which hashes a list of field elements.</li>
+</ul>
+</section>
+<section>
+<h2>Interface</h2>
 <p>A channel has two fields:</p>
 <ul>
-<li>A <strong>digest</strong>, which represents the current internal state.</li>
-<li>A <strong>counter</strong>, which helps produce different values when the channel is used repeatedly to sample verifier challenges.</li>
+<li>A <strong><code>digest</code></strong>, which represents the current internal state.</li>
+<li>A <strong><code>counter</code></strong>, which helps produce different values when the channel is used repeatedly to sample verifier challenges.</li>
 </ul>
 <p>The channel has the following interface:</p>
-<p><strong><code>init(digest)</code></strong>. </p>
+<p><strong>Initialize</strong>. This intializes the channel in the following way: </p>
 <ul>
-<li>Initializes the channel with a digest, which is the prologue/context to the protocol. </li>
-<li>Set the counter to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>0</mn></mrow></math>.</li>
+<li>Set the <code>digest</code> to the given <code>digest</code>, which is the prologue/context to the protocol. </li>
+<li>Set the <code>counter</code> to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>0</mn></mrow></math>.</li>
 </ul>
-<p><strong>message from prover to verifier</strong>.</p>
+<p><strong>Absorb a message from the prover</strong>.</p>
 <ul>
-<li>Resets the counter to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>0</mn></mrow></math>.</li>
-<li>Set the digest to <code>POSEIDON_hash(digest + 1 || value)</code>. (TODO: what if several values)</li>
+<li>Resets the <code>counter</code> to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>0</mn></mrow></math>.</li>
+<li>Set the <code>digest</code> to <code>POSEIDON_hash(digest + 1 || value)</code>.</li>
 </ul>
 <p>TODO: explain why the +1</p>
-<p><strong>message from verifier to prover</strong>.</p>
+<p><strong>Absorb multiple messages from the prover</strong>.</p>
+<ul>
+<li>Resets the <code>counter</code> to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>0</mn></mrow></math>.</li>
+<li>Set the <code>digest</code> to <code>POSEIDON_hash(digest + 1 || values)</code>.</li>
+</ul>
+<aside class="warning">This function is not compatible with multiple call to the previous function.</aside>
+
+<p><strong>Produce a verifier challenge</strong>.</p>
 <ul>
 <li>Produce a random value as <code>hades_permutation(digest, counter, 2)</code>.</li>
-<li>Increment the counter.</li>
+<li>Increment the <code>counter</code>.</li>
 </ul>
-<aside class="note">With the current design, two different protocols where one produces <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>n</mi></mrow></math> challenges and another that produces <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>m</mi></mrow></math> challenges will have the same "transcript" and thus will continue to produce the same challenges later on in the protocol. While there are no issues in this design in the context of Starknet, this might not always be secure when used in other protocols.</aside>
+<aside class="warning">With the current design, two different protocols where one produces <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>n</mi></mrow></math> challenges and another that produces <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>m</mi></mrow></math> challenges will have the same "transcript" and thus will continue to produce the same challenges later on in the protocol. While there are no issues in this design in the context of Starknet, this might not always be secure when used in other protocols.</aside>
 </section>
 </body>
 
