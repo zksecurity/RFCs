@@ -498,7 +498,7 @@ We process it in the following way:
 
 ### Query Phase
 
-FRI queries are generated once, and then refined through each reduction of the FRI protocol. The number of queries that is randomly generated is based on [configuration]().
+FRI queries are generated once, and then refined through each reduction of the FRI protocol. The number of queries that is pseudo-randomly generated is based on [configuration](#configuration).
 
 Each FRI query is composed of the following fields:
 
@@ -523,6 +523,8 @@ $$
 Or in terms of commitment, that the decommitment at path the path behind `index` is `y_value`.
 
 <aside class="note">This is not exactly correct. The Commitment section explains that `index` points to a point, whereas we need to point to the path in the Merkle tree commitment that gathers its associated points. In addition, `y_value` only gives one evaluation, so the prover will need to witness associated evaluations surrounding the `y_value` as well (see Table Commitment section).</aside>
+
+See the [Converting A Query to a Path section of the Merkle tree specification](merkle.html#converting-a-query-to-a-path) for more details.
 
 #### Generating The First Queries
 

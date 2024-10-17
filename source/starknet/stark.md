@@ -170,7 +170,7 @@ The oracle should provide the evaluations, under the same set of FRI queries (an
 * the traces polynomials, which include both the original trace polynomial and the interaction trace polynomial)
 * the composition column polynomials
 
-In addition the oracle should verify decommitment proofs (Merkle membership proofs) for each of these evaluations. We refer to the [Merkle Tree Polynomial Commitments specification](polynomial_commitment.html) on how to verify evaluation proofs.
+In addition the oracle should verify decommitment proofs (Merkle membership proofs) for each of these evaluations. We refer to the [Merkle Tree Polynomial Commitments specification](merkle.html) on how to verify evaluation proofs.
 
 <aside class="warning">The logic of the oracle must be implemented as part of the verification. The term "oracle" simply refers to an opaque callback function from the FRI protocol's perspective.</aside>
 

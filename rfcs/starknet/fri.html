@@ -478,7 +478,7 @@ struct VectorCommitmentConfig {
 </section>
 <section>
 <h3>Query Phase</h3>
-<p>FRI queries are generated once, and then refined through each reduction of the FRI protocol. The number of queries that is randomly generated is based on <a href="">configuration</a>.</p>
+<p>FRI queries are generated once, and then refined through each reduction of the FRI protocol. The number of queries that is pseudo-randomly generated is based on <a href="#configuration">configuration</a>.</p>
 <p>Each FRI query is composed of the following fields:</p>
 <ul>
 <li><code>index</code>: the index of the query in the layer's evaluations. Note that this value needs to be shifted before being used as a path in a Merkle tree commitment.</li>
@@ -497,6 +497,7 @@ struct VectorCommitmentConfig {
 <p>Or in terms of commitment, that the decommitment at path the path behind <code>index</code> is <code>y_value</code>.</p>
 <aside class="note">This is not exactly correct. The Commitment section explains that `index` points to a point, whereas we need to point to the path in the Merkle tree commitment that gathers its associated points. In addition, `y_value` only gives one evaluation, so the prover will need to witness associated evaluations surrounding the `y_value` as well (see Table Commitment section).</aside>
 
+<p>See the <a href="merkle.html#converting-a-query-to-a-path">Converting A Query to a Path section of the Merkle tree specification</a> for more details.</p>
 <section>
 <h4>Generating The First Queries</h4>
 <p>The generation of each FRI query goes through the same process:</p>
