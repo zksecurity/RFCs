@@ -77,14 +77,20 @@
     </section>
     <section>
 <h2>Overview</h2>
+<aside class="warning">This specification is work-in-progress.</aside>
+
 <p>Commitments of polynomials are done using <a href="https://en.wikipedia.org/wiki/Merkle_tree">Merkle trees</a>. The Merkle trees can be configured to hash some parameterized number of the lower layers using a circuit-friendly hash function (Poseidon).</p>
-<ul>
-<li>TODO: why montgomery form?</li>
-</ul>
 </section>
 <section>
 <h2>Dependencies</h2>
-<p>TODO: hash</p>
+<ul>
+<li>the verifier-friendly hash is <code>hades_permutation(s1, s2, 2)</code> always setting the last field element to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>2</mn></mrow></math></li>
+<li>the default hash is either keccak256 or blake2s</li>
+</ul>
+</section>
+<section>
+<h2>Constants</h2>
+<p><strong><code>MONTGOMERY_R = 3618502788666127798953978732740734578953660990361066340291730267701097005025</code></strong>. The Montgomery form of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>256</mn></mrow></msup><mspace width="1em" /><mi>mod</mi><mspace width="0.333em" /><mtext>STARK_PRIME</mtext></mrow></math>.</p>
 </section>
 <section>
 <h2>Vector commitments</h2>
@@ -101,6 +107,7 @@
 <li>the composition polynomial in the <a href="stark.html">STARK verifier specification</a> is a table commitment where each leaf is a hash of the evaluations of the composition polynomial columns at the same point</li>
 <li>the FRI layer commitments in the <a href="fri.html">FRI verifier specification</a> are table commitments where each leaf is a hash of the evaluations of the FRI layer columns at associated points (e.g. <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>)</li>
 </ul>
+<p>Note that values are multiplied to the <code>MONTGOMERY_R</code> constant before being hashed as leaves in the tree. TODO: explain why</p>
 </section>
 <section>
 <h2>Index to Path Conversion</h2>

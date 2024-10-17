@@ -9,6 +9,8 @@ tags: ["starknet", "stark", "ethSTARK"]
 
 ## Overview
 
+<aside class="warning">This specification is work-in-progress.</aside>
+
 In this section we give an overview of the STARK protocol.
 
 <aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>

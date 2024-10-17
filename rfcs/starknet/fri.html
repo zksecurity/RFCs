@@ -79,6 +79,8 @@
     </section>
     <section>
 <h2>Overview</h2>
+<aside class="warning">This specification is work-in-progress.</aside>
+
 <p>We briefly give an overview of the FRI protocol, before specifying how it is used in the StarkNet protocol.</p>
 <section>
 <h3>FRI</h3>
@@ -355,7 +357,6 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <p><strong><code>MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15</code></strong>. TKTK</p>
 <p><strong><code>MAX_FRI_LAYERS = 15</code></strong>. The maximum number of layers in the FRI protocol. This means that the protocol can test that committed polynomials exist and are of degree at most <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>15</mn></mrow></msup></mrow></math>. (TODO: double check)</p>
 <p><strong><code>MAX_FRI_STEP = 4</code></strong>. The maximum number of layers that can be skipped in FRI (see the overview for more details).</p>
-<p><strong><code>MONTGOMERY_R = 3618502788666127798953978732740734578953660990361066340291730267701097005025</code></strong>. The Montgomery form of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>256</mn></mrow></msup><mspace width="1em" /><mi>mod</mi><mspace width="0.333em" /><mtext>STARK_PRIME</mtext></mrow></math>:</p>
 </section>
 <section>
 <h3>TODO: Step generators</h3>

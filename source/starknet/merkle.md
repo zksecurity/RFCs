@@ -9,13 +9,18 @@ tags: ["starknet", "PCS", "Merkle tree", "hash-based commitments"]
 
 ## Overview
 
-Commitments of polynomials are done using [Merkle trees](https://en.wikipedia.org/wiki/Merkle_tree). The Merkle trees can be configured to hash some parameterized number of the lower layers using a circuit-friendly hash function (Poseidon).
+<aside class="warning">This specification is work-in-progress.</aside>
 
-* TODO: why montgomery form?
+Commitments of polynomials are done using [Merkle trees](https://en.wikipedia.org/wiki/Merkle_tree). The Merkle trees can be configured to hash some parameterized number of the lower layers using a circuit-friendly hash function (Poseidon).
 
 ## Dependencies
 
-TODO: hash
+* the verifier-friendly hash is `hades_permutation(s1, s2, 2)` always setting the last field element to $2$
+* the default hash is either keccak256 or blake2s
+
+## Constants
+
+**`MONTGOMERY_R = 3618502788666127798953978732740734578953660990361066340291730267701097005025`**. The Montgomery form of $2^{256} \mod \text{STARK_PRIME}$.
 
 ## Vector commitments
 
@@ -34,6 +39,8 @@ A few examples:
 * the trace polynomials in the [STARK verifier specification](stark.html) are table commitments where each leaf is a hash of the evaluations of all the trace column polynomials at the same point
 * the composition polynomial in the [STARK verifier specification](stark.html) is a table commitment where each leaf is a hash of the evaluations of the composition polynomial columns at the same point
 * the FRI layer commitments in the [FRI verifier specification](fri.html) are table commitments where each leaf is a hash of the evaluations of the FRI layer columns at associated points (e.g. $v$ and $-v$)
+
+Note that values are multiplied to the `MONTGOMERY_R` constant before being hashed as leaves in the tree. TODO: explain why
 
 ## Index to Path Conversion
 
