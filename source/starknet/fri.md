@@ -71,7 +71,7 @@ assert find_gen2(3)^8 == 1
 
 #### Reduction
 
-![folding](/img/starknet/fri/folding.png)
+![folding](/img/starknet/folding.png)
 
 A reduction in the FRI protocol is obtained by interpreting an input polynomial $p$ as a polynomial of degree $2n$ and splitting it into two polynomials $g$ and $h$ of degree $n$ such that $p(x) = g(x^2) + x h(x^2)$.
 
@@ -129,7 +129,7 @@ assert p3.degree() == 0
 
 #### Queries
 
-![queries](/img/starknet/fri/queries.png)
+![queries](/img/starknet/queries.png)
 
 In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represent the proper reduction of the previous layer's polynomial. To do that, they "query" commitments of the different polynomials of the different layers at points/evaluations. Let's see how this works.
 
@@ -181,7 +181,7 @@ assert p3 == g2_square + zeta2 * h2_square # we already received p3 at the end o
 
 #### Skipping FRI layers
 
-![skipped layers](/img/starknet/fri/skipped_layers.png)
+![skipped layers](/img/starknet/skipped_layers.png)
 
 Section 3.11.1 "Skipping FRI Layers" of the ethSTARK paper describes an optimization which skips some of the layers/rounds. The intuition is the following: if we removed the first round commitment (to the polynomial $p_1$), then the verifier would not be able to:
 
