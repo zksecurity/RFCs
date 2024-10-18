@@ -142,7 +142,7 @@ assert find_gen2(3)^8 == 1
     # at this point g and h are still around the same degree of p
     # we need to replace x^2 by x for FRI to (as we want to halve the degrees!)
     if remove_square:
-        g = g.parent(g.list()[::2]) # &lt;-- (using python's &lt;!--CODE_BLOCK_27--&gt; syntax)
+        g = g.parent(g.list()[::2]) # &lt;-- (using python's &lt;!--CODE_BLOCK_33--&gt; syntax)
         h = h.parent(h.list()[::2])
         assert g.degree() == h.degree() == p.degree() // 2
         assert p(7) == g(7^2) + 7 * h(7^2)
@@ -324,7 +324,7 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 </section>
 <section>
 <h2>External Dependencies</h2>
-<p>In this section we list all dependencies and the API this standard relies on.</p>
+<p>In this section we list all of the dependencies and interfaces this standard relies on.</p>
 <section>
 <h3>Hash Functions</h3>
 <p>We rely on two type of hash functions:</p>

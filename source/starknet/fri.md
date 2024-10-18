@@ -319,7 +319,7 @@ Note that these changes can easily be generalized to work when layers are skippe
 
 ## External Dependencies
 
-In this section we list all dependencies and the API this standard relies on.
+In this section we list all of the dependencies and interfaces this standard relies on.
 
 ### Hash Functions
 
