@@ -56,13 +56,13 @@ We give the example of two "original" columns and one "interaction" column, inde
 
 ![air](/img/starknet/air.png)
 
-Here one constraint could be to enforce that `col0[i] + col1[i] - col0[i+1] = 0` on every row `i` except the last one.
+<aside class="example">Here one constraint could be to enforce that `col0[i] + col1[i] - col0[i+1] = 0` on every row `i` except the last one.
 
 As the columns of the table are later interpolated over the index domain, such constraints are usually described and applied as polynomials. So the previous example constraint would look like the following polynomial:
 
 $$\frac{\text{col}_0(x) + \text{col}_1(x) - \text{col}_0(x \cdot w)}{D_0(x)}$$
 
-where the domain polynomial $D_0$ can be efficiently computed as $\frac{x^{16} - 1}{w^{15} - 1}$.
+where the domain polynomial $D_0$ can be efficiently computed as $\frac{x^{16} - 1}{w^{15} - 1}$.</aside>
 
 The first phase of the Starknet STARK protocol is to iteratively construct the trace tables (what we previously called interactive arithmetization). The prover sends commitments to parts of the table, and receives verifier challenges in between.
 
@@ -88,7 +88,7 @@ As we want to avoid having to go through many FRI checks, the verifier sends a c
 
 This composition polynomial is quite big, so the prover provides a commitment to chunks or columns of the composition polynomials, interpreting $h$ as $h(x) = \sum_i h_i(x) x^i$.
 
-<aside class="note">In the instantation of this specification with Cairo, there are only two composition column polynomials: $h(x) = h_0(x) + h_1(x) \cdot x$.</aside>.
+<aside class="note">In the instantation of this specification with Cairo, there are only two composition column polynomials: $h(x) = h_0(x) + h_1(x) \cdot x$.</aside>
 
 Finally, to allow the verifier to check that $h$ has correctly been committed, Schwartz-Zippel is used with a random verifier challenge called the "oods point". Specifically, the verifier evaluates the following and check that they match:
 
