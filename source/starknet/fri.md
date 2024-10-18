@@ -491,13 +491,17 @@ See the [Converting A Query to a Path section of the Merkle tree specification](
 
 The generation of each FRI query goes through the same process:
 
-* Sample a random challenge from the [channel]().
+* Sample a random challenge from the [channel](#channel).
 * Truncate the challenge to obtain the lower 128-bit chunk.
 * Reduce it modulo the size of the evaluation domain.
 
 Finally, when all FRI queries have been generated, they are sorted in ascending order.
 
-TODO: this is important due to the decommit algorithm.
+<aside class="note">This gives you a value that is related to the path to query in a [Merkle tree commitment](#commitments), and can be used to derive the actual evaluation point at which the polynomial is evaluated. Commitments should reveal not just one evaluation, but correlated evaluations in order to help the protocol move forward. For example, if a query is generated for the evaluation point $v$, then the commitment will reveal the evaluation of a polynomial at $v$ but also at $-v$ and potentially more points (depending on the number of layers skipped).</aside>
+
+TODO: include how we provide the `y_value` and how we verify the first layer's evaluations still
+
+TODO: also talk about how the first query is fixed to move away from the coset
 
 #### Converting A Query To An Evaluation Point
 
@@ -521,15 +525,19 @@ TODO: explain why not just do $3 \cdot \omega_e{q}$
 
 TODO: refer to the section on the first layer evaluation stuff (external dependency)
 
-Besides the first and last layers, each layer verification of a query happens by simply decommiting a layer's queries.
+Besides the last layer, each layer verification of a query happens by simply decommiting a layer's queries.
 
 ```rust
 table_decommit(commitment, paths, leaves_values, witness, settings);
 ```
 
+To verify the last layer's query, as the last layer polynomial is received in clear, simply evaluate it at the queried point `1/fri_layer_query.x_inv_value` and check that it matches the expected evaluation `fri_layer_query.y_value`.
+
 TODO: As explained in the section on Merkle Tree Decommitment, witness leaves values have to be given as well.
 
 TODO: link to section on merkle tree
+
+
 
 #### Computing the next layer's queries
 
@@ -544,8 +552,6 @@ The next queries are derived as:
 where coset_size is 2, 4, 8, or 16 depending on the layer (but always 2 for the first layer).
 
 TODO: explain the relation between coset_size and the step size. coset_size = 2^step_size
-
-##### FRI formula
 
 The next evaluations expected at the queried layers are derived as:
 
