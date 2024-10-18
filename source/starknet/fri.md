@@ -440,14 +440,14 @@ TODO: validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
 * the `log_last_layer_degree_bound` must be less or equal to `MAX_LAST_LAYER_LOG_DEGREE_BOUND`
 * the first`fri_step_sizes[0]` must be 0 (TODO: explain why)
 * for every `fri_step_sizes[i]` check:
-  * that the step `fri_step_sizes[i]` is within the range `[1, MAX_FRI_STEP]`
-  * that the previous layer table commitment configuration `inner_Layers[i-1]` has
-    * a number of columns `n_columns = 2^fri_step` (TODO: why?)
-    * a valid configuration, which can be verified using the expected log input size and the `n_verifier_friendly_commitment_layers`
-      * expected log input size should be the input size minus all the step sizes so far
+    * that the step `fri_step_sizes[i]` is within the range `[1, MAX_FRI_STEP]`
+    * that the previous layer table commitment configuration `inner_Layers[i-1]` has
+      * a number of columns `n_columns = 2^fri_step` (TODO: why?)
+      * a valid configuration, which can be verified using the expected log input size and the `n_verifier_friendly_commitment_layers`
+        * expected log input size should be the input size minus all the step sizes so far
 * the `log_expected_input_degree + log_n_cosets == log_input_size`
-  * TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)
-  * where `log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound`
+    * TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)
+    * where `log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound`
 
 ## Protocol
 
