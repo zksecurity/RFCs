@@ -195,12 +195,6 @@ With our previous example constraint, the prover would have to provide the evalu
 <p><strong><code>FIELD_GENERATOR = 3</code></strong>. The generator for the main multiplicative subgroup of the Starknet field. This is also used as coset factor to produce the coset used in the first layer's evaluation.</p>
 </section>
 <section>
-<h3>Hash function</h3>
-<ul>
-<li>poseidon with hades permutation (https://docs.orochi.network/poseidon-hash/poseidon-permutation-design/hades-based-design.html ?)</li>
-</ul>
-</section>
-<section>
 <h3>Channel</h3>
 <p>See the <a href="channel.html">Channel specification</a> for more details.</p>
 </section>
@@ -291,11 +285,13 @@ struct StarkUnsentCommitment {
 <h3>STARK commit</h3>
 <p>The goal of the STARK commit is to process all of the commitments produced by the prover during the protocol (including the FRI commitments), as well as produce the verifier challenges.</p>
 <ol>
-<li>Interactive arithmetization to absorb the execution trace tables.</li>
+<li><strong>Interactive arithmetization to absorb the execution trace tables</strong>:<ol>
 <li>Absorb the original table with the channel.</li>
 <li>Sample the interaction challenges (e.g. z and alpha for the memory check argument (different alpha called memory_alpha to distinguish it from the alpha used to aggregate the different constraints into the composition polynomial)).</li>
 <li>Absorb the interaction table with the channel.</li>
-<li>Produce the aggregation of the constraint quotient polynomials as the composition polynomial.</li>
+</ol>
+</li>
+<li><strong>Produce the aggregation of the constraint quotient polynomials as the composition polynomial</strong>:<ol>
 <li>Sample the alpha challenge ("composition_alpha") to aggregate all the constraint quotient polynomials (caches the powers of alpha into "traces_coefficients").</li>
 <li>Absorb the composition columns (the <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>h</mi><mi>i</mi></msub></mrow></math> in <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mo>&#x02211;</mo><mi>i</mi></msub><msub><mi>h</mi><mi>i</mi></msub><msup><mi>x</mi><mi>i</mi></msup></mrow></math>) with the channel.</li>
 <li>Sample the oods point (<code>interaction_after_composition</code>).</li>
@@ -305,15 +301,19 @@ struct StarkUnsentCommitment {
 <li>The left-hand side has to be computed using the <code>eval_composition_polynomial</code> function defined in the <a href="#air-arithmetization-dependency">AIR Arithemtization Dependency section</a>.</li>
 </ol>
 </li>
-<li>Produce a challenge to aggregate all FRI checks and run the FRI protocol</li>
+</ol>
+</li>
+<li><strong>Produce a challenge to aggregate all FRI checks and run the FRI protocol</strong>:<ol>
 <li>Sample the oods_alpha challenge with the channel.</li>
 <li>Call <code>fri_commit</code>.</li>
+</ol>
+</li>
 </ol>
 </section>
 <section>
 <h3>STARK verify</h3>
 <p>The goal of STARK verify is to verify evaluation queries (by checking that evaluations exist in the committed polynomials) and the FRI queries (by running the FRI verification).</p>
-<p>To do this, we simply call the <code>fri_verify_initial</code> function contained in the FRI specification, and giving it the values computed by <code>eval_oods_polynomial</code> (as defined in the <a href="#air-arithmetization-dependency">AIR Arithmetization Dependency section</a>) as first evaluations associated to the queried points.</p>
+<p>To do this, we simply call the <code>fri_verify_initial</code> function contained in the FRI specification and give it the values computed by <code>eval_oods_polynomial</code> (as defined in the <a href="#air-arithmetization-dependency">AIR Arithmetization Dependency section</a>) as first evaluations associated to the queried points. It should return two FRI objects.</p>
 <aside class="note">These evaluations will only provide evaluations of the first layer polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub></mrow></math> at query points <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>v</mi><mi>i</mi></msub></mrow></math>. The prover will witness evaluations at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><msub><mi>v</mi><mi>i</mi></msub></mrow></math> by themselves and prove that they are present in the first FRI commitment (of the polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub></mrow></math>.</aside>
 
 </section>
@@ -326,18 +326,6 @@ struct StarkUnsentCommitment {
 <li><code>verify_step</code> is a wrapper around <code>fri_verify_step</code> (see the <a href="#fri">FRI</a> section).</li>
 <li><code>verify_final</code> is a wrapper around <code>fri_verify_final</code> (see the <a href="#fri">FRI</a> section).</li>
 </ul>
-<p>One can successively call them in the following order to verify a proof:</p>
-<ol>
-<li>Call <code>verify_initial</code> on the proof and return:</li>
-<li>the <code>FriVerificationStateConstant</code> object</li>
-<li>the <code>FriVerificationStateVariable</code> object</li>
-<li>the <code>last_layer_coefficients</code></li>
-<li>the security bits &lt;-- TODO: remove this?</li>
-<li>Call verify_step in a loop on each layer of the proof (<code>n_layers</code> of them according to the StateConstant returned) and pass the FriVerificationStateVariable in between each calls</li>
-<li>Call verify_final on the StateConstant and StateVariable objects</li>
-<li>Enforce that the the StateVariable's iter field is <code>n_layers + 1</code></li>
-<li>Return the security bits. (TODO: do we need this)</li>
-</ol>
 <p>The verify initial function is defined as:</p>
 <ol>
 <li>Validate the configuration and return the security_bits (TODO: how is security bits calculated).</li>
@@ -346,7 +334,21 @@ struct StarkUnsentCommitment {
 <li>Compute the initial digest as <code>get_public_input_hash(public_input, cfg.n_verifier_friendly_commitment_layers, settings)</code> (TODO: define external function for that).</li>
 <li>Initialize the channel using the digest as defined in the <a href="#channel">Channel</a> section.</li>
 <li>Call STARK commit as defined in the <a href="#stark-commit">STARK commit</a> section.</li>
-<li>Call STARK verify as defined in the <a href="#stark-verify">STARK verify</a> section.</li>
+<li>Call STARK verify as defined in the <a href="#stark-verify">STARK verify</a> section and return the two FRI objects to the caller.</li>
+</ol>
+<p>One can successively call them in the following order to verify a proof:</p>
+<ol>
+<li>Call <code>verify_initial</code> on the proof and return:<ul>
+<li>the <code>FriVerificationStateConstant</code> object</li>
+<li>the <code>FriVerificationStateVariable</code> object</li>
+<li>the <code>last_layer_coefficients</code></li>
+<li>the security bits &lt;-- TODO: remove this?</li>
+</ul>
+</li>
+<li>Call verify_step in a loop on each layer of the proof (<code>n_layers</code> of them according to the StateConstant returned) and pass the FriVerificationStateVariable in between each calls</li>
+<li>Call verify_final on the StateConstant and StateVariable objects</li>
+<li>Enforce that the the StateVariable's iter field is <code>n_layers + 1</code></li>
+<li>Return the security bits. (TODO: do we need this)</li>
 </ol>
 </section>
 </body>

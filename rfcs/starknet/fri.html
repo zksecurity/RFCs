@@ -422,17 +422,21 @@ struct TableCommitmentConfig {
 <li>the number of layers <code>n_layers</code> must be within the range <code>[2, MAX_FRI_LAYERS]</code> (see constants)</li>
 <li>the <code>log_last_layer_degree_bound</code> must be less or equal to <code>MAX_LAST_LAYER_LOG_DEGREE_BOUND</code></li>
 <li>the first<code>fri_step_sizes[0]</code> must be 0 (TODO: explain why)</li>
-<li>for every <code>fri_step_sizes[i]</code> check:</li>
+<li>for every <code>fri_step_sizes[i]</code> check:<ul>
 <li>that the step <code>fri_step_sizes[i]</code> is within the range <code>[1, MAX_FRI_STEP]</code></li>
-<li>that the previous layer table commitment configuration <code>inner_Layers[i-1]</code> has<ul>
+<li>that the previous layer table commitment configuration <code>inner_Layers[i-1]</code> has</li>
 <li>a number of columns <code>n_columns = 2^fri_step</code> (TODO: why?)</li>
-<li>a valid configuration, which can be verified using the expected log input size and the <code>n_verifier_friendly_commitment_layers</code></li>
+<li>a valid configuration, which can be verified using the expected log input size and the <code>n_verifier_friendly_commitment_layers</code><ul>
 <li>expected log input size should be the input size minus all the step sizes so far</li>
 </ul>
 </li>
-<li>the <code>log_expected_input_degree + log_n_cosets == log_input_size</code></li>
+</ul>
+</li>
+<li>the <code>log_expected_input_degree + log_n_cosets == log_input_size</code><ul>
 <li>TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)</li>
 <li>where <code>log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound</code></li>
+</ul>
+</li>
 </ul>
 </section>
 </section>

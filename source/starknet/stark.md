@@ -154,10 +154,6 @@ We use the following constants throughout the protocol.
 
 **`FIELD_GENERATOR = 3`**. The generator for the main multiplicative subgroup of the Starknet field. This is also used as coset factor to produce the coset used in the first layer's evaluation.
 
-### Hash function
-
-* poseidon with hades permutation (https://docs.orochi.network/poseidon-hash/poseidon-permutation-design/hades-based-design.html ?)
-
 ### Channel
 
 See the [Channel specification](channel.html) for more details.
@@ -254,27 +250,27 @@ Commitments to all the polynomials, before the FRI protocol, are done using tabl
 
 The goal of the STARK commit is to process all of the commitments produced by the prover during the protocol (including the FRI commitments), as well as produce the verifier challenges.
 
-1. Interactive arithmetization to absorb the execution trace tables.
-   1. Absorb the original table with the channel.
-   2. Sample the interaction challenges (e.g. z and alpha for the memory check argument (different alpha called memory_alpha to distinguish it from the alpha used to aggregate the different constraints into the composition polynomial)).
-   3. Absorb the interaction table with the channel.
-1. Produce the aggregation of the constraint quotient polynomials as the composition polynomial.
-   1. Sample the alpha challenge ("composition_alpha") to aggregate all the constraint quotient polynomials (caches the powers of alpha into "traces_coefficients").
-   2. Absorb the composition columns (the $h_i$ in $h(x) = \sum_i h_i x^i$) with the channel.
-   3. Sample the oods point (`interaction_after_composition`).
-   4. Absorb all evaluations with the channel.
-   5. Verify that the composition polynomial is correct by checking that its evaluation at the oods point is correct using some of the evaluations $\sum_j \frac{C_j(\text{oods_point})}{D_j(\text{odds_point})} = \sum_i h_i(\text{oods_point}) \times \text{oods_point}^i$.
-      1. The right-hand side can be computed directly using the evaluations sent by the prover
-      2. The left-hand side has to be computed using the `eval_composition_polynomial` function defined in the [AIR Arithemtization Dependency section](#air-arithmetization-dependency).
-2. Produce a challenge to aggregate all FRI checks and run the FRI protocol
-   1. Sample the oods_alpha challenge with the channel.
-   2. Call `fri_commit`.
+1. **Interactive arithmetization to absorb the execution trace tables**:
+      1. Absorb the original table with the channel.
+      2. Sample the interaction challenges (e.g. z and alpha for the memory check argument (different alpha called memory_alpha to distinguish it from the alpha used to aggregate the different constraints into the composition polynomial)).
+      3. Absorb the interaction table with the channel.
+2. **Produce the aggregation of the constraint quotient polynomials as the composition polynomial**:
+      1. Sample the alpha challenge ("composition_alpha") to aggregate all the constraint quotient polynomials (caches the powers of alpha into "traces_coefficients").
+      2. Absorb the composition columns (the $h_i$ in $h(x) = \sum_i h_i x^i$) with the channel.
+      3. Sample the oods point (`interaction_after_composition`).
+      4. Absorb all evaluations with the channel.
+      5. Verify that the composition polynomial is correct by checking that its evaluation at the oods point is correct using some of the evaluations $\sum_j \frac{C_j(\text{oods_point})}{D_j(\text{odds_point})} = \sum_i h_i(\text{oods_point}) \times \text{oods_point}^i$.
+         1. The right-hand side can be computed directly using the evaluations sent by the prover
+         2. The left-hand side has to be computed using the `eval_composition_polynomial` function defined in the [AIR Arithemtization Dependency section](#air-arithmetization-dependency).
+3. **Produce a challenge to aggregate all FRI checks and run the FRI protocol**:
+      1. Sample the oods_alpha challenge with the channel.
+      2. Call `fri_commit`.
 
 ### STARK verify
 
 The goal of STARK verify is to verify evaluation queries (by checking that evaluations exist in the committed polynomials) and the FRI queries (by running the FRI verification).
 
-To do this, we simply call the `fri_verify_initial` function contained in the FRI specification, and giving it the values computed by `eval_oods_polynomial` (as defined in the [AIR Arithmetization Dependency section](#air-arithmetization-dependency)) as first evaluations associated to the queried points.
+To do this, we simply call the `fri_verify_initial` function contained in the FRI specification and give it the values computed by `eval_oods_polynomial` (as defined in the [AIR Arithmetization Dependency section](#air-arithmetization-dependency)) as first evaluations associated to the queried points. It should return two FRI objects.
 
 <aside class="note">These evaluations will only provide evaluations of the first layer polynomial $p_0$ at query points $v_i$. The prover will witness evaluations at $-v_i$ by themselves and prove that they are present in the first FRI commitment (of the polynomial $p_0$.</aside>
 
@@ -286,18 +282,6 @@ The protocol is split into 3 core functions:
 * `verify_step` is a wrapper around `fri_verify_step` (see the [FRI](#fri) section).
 * `verify_final` is a wrapper around `fri_verify_final` (see the [FRI](#fri) section).
 
-One can successively call them in the following order to verify a proof:
-
-1. Call `verify_initial` on the proof and return:
-   1. the `FriVerificationStateConstant` object
-   2. the `FriVerificationStateVariable` object
-   3. the `last_layer_coefficients`
-   4. the security bits <-- TODO: remove this?
-2. Call verify_step in a loop on each layer of the proof (`n_layers` of them according to the StateConstant returned) and pass the FriVerificationStateVariable in between each calls
-3. Call verify_final on the StateConstant and StateVariable objects
-4. Enforce that the the StateVariable's iter field is `n_layers + 1`
-5. Return the security bits. (TODO: do we need this)
-
 The verify initial function is defined as:
 
 1. Validate the configuration and return the security_bits (TODO: how is security bits calculated).
@@ -306,4 +290,16 @@ The verify initial function is defined as:
 1. Compute the initial digest as `get_public_input_hash(public_input, cfg.n_verifier_friendly_commitment_layers, settings)` (TODO: define external function for that).
 1. Initialize the channel using the digest as defined in the [Channel](#channel) section.
 1. Call STARK commit as defined in the [STARK commit](#stark-commit) section.
-1. Call STARK verify as defined in the [STARK verify](#stark-verify) section.
+1. Call STARK verify as defined in the [STARK verify](#stark-verify) section and return the two FRI objects to the caller.
+
+One can successively call them in the following order to verify a proof:
+
+1. Call `verify_initial` on the proof and return:
+      - the `FriVerificationStateConstant` object
+      - the `FriVerificationStateVariable` object
+      - the `last_layer_coefficients`
+      - the security bits <-- TODO: remove this?
+2. Call verify_step in a loop on each layer of the proof (`n_layers` of them according to the StateConstant returned) and pass the FriVerificationStateVariable in between each calls
+3. Call verify_final on the StateConstant and StateVariable objects
+4. Enforce that the the StateVariable's iter field is `n_layers + 1`
+5. Return the security bits. (TODO: do we need this)
