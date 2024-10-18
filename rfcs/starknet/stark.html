@@ -106,8 +106,6 @@ The instantiation of this protocol with Cairo should be the object of a differen
 <section>
 <h3>Interactive AIR Arithmetization</h3>
 <p>But first, we quickly remind the reader that the Starknet STARK protocol allows a prover to convince a verifier that an AIR (Algebraic Intermediate Representation) arithmetization is satisfied by their witness. This is generally augmented to also include a public input, usually via a <a href="https://zksecurity.github.io/stark-book/cairo/memory.html">public memory</a> extension.</p>
-<section>
-<h4>AIR Arithmetization</h4>
 <p>AIR is essentially two things:</p>
 <ol>
 <li>an indexed table representing the execution trace of a run, where columns can be seen as registers and the rows the values they take as one steps through a program. The table takes values when a prover tries to prove an execution. </li>
@@ -122,16 +120,12 @@ The instantiation of this protocol with Cairo should be the object of a differen
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mfrac><mrow><msub><mtext>col</mtext><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mtext>col</mtext><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mtext>col</mtext><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mi>&#x000B7;</mi><mi>w</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><msub><mi>D</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></mfrac></mrow></math>
 
 <p>where the domain polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>D</mi><mn>0</mn></msub></mrow></math> can be efficiently computed as <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mfrac><mrow><msup><mi>x</mi><mrow><mn>16</mn></mrow></msup><mo>&#x02212;</mo><mn>1</mn></mrow><mrow><msup><mi>w</mi><mrow><mn>15</mn></mrow></msup><mo>&#x02212;</mo><mn>1</mn></mrow></mfrac></mrow></math>.</p>
-</section>
-<section>
-<h4>Interactive Arithmetization</h4>
+<p>The first phase of the Starknet STARK protocol is to iteratively construct the trace tables (what we previously called interactive arithmetization). The prover sends commitments to parts of the table, and receives verifier challenges in between.</p>
+<aside class="note">In the instantiation of the Starknet STARK protocol, there are only two execution trace tables: the original trace table and the interaction trace table, the verifier challenges received in between is called the interaction challenges. Different Cairo layouts will give place to different trace tables and interaction challenges.</aside>
+
 <ul>
-<li>The first phase of the Starknet STARK protocol is to iteratively construct the trace tables (what we previously called interactive arithmetization).</li>
-<li>The prover sends commitments to parts of the table, and receives verifier challenges in between.</li>
-<li>In the instantiation of the Starknet STARK protocol, there are only two execution trace tables: the original trace table and the interaction trace table, the verifier challenges received in between is called the interaction challenges. Different Cairo layouts will give place to different trace tables and interaction challenges.</li>
 <li>TODO: we should make this part agnostic to Cairo though.</li>
 </ul>
-</section>
 </section>
 <section>
 <h3>Composition Polynomial</h3>

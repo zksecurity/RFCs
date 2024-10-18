@@ -43,8 +43,6 @@ In the next sections we review the different phases.
 
 But first, we quickly remind the reader that the Starknet STARK protocol allows a prover to convince a verifier that an AIR (Algebraic Intermediate Representation) arithmetization is satisfied by their witness. This is generally augmented to also include a public input, usually via a [public memory](https://zksecurity.github.io/stark-book/cairo/memory.html) extension.
 
-#### AIR Arithmetization
-
 AIR is essentially two things:
 
 1. an indexed table representing the execution trace of a run, where columns can be seen as registers and the rows the values they take as one steps through a program. The table takes values when a prover tries to prove an execution. 
@@ -66,11 +64,10 @@ $$\frac{\text{col}_0(x) + \text{col}_1(x) - \text{col}_0(x \cdot w)}{D_0(x)}$$
 
 where the domain polynomial $D_0$ can be efficiently computed as $\frac{x^{16} - 1}{w^{15} - 1}$.
 
-#### Interactive Arithmetization
+The first phase of the Starknet STARK protocol is to iteratively construct the trace tables (what we previously called interactive arithmetization). The prover sends commitments to parts of the table, and receives verifier challenges in between.
 
-* The first phase of the Starknet STARK protocol is to iteratively construct the trace tables (what we previously called interactive arithmetization).
-* The prover sends commitments to parts of the table, and receives verifier challenges in between.
-* In the instantiation of the Starknet STARK protocol, there are only two execution trace tables: the original trace table and the interaction trace table, the verifier challenges received in between is called the interaction challenges. Different Cairo layouts will give place to different trace tables and interaction challenges.
+<aside class="note">In the instantiation of the Starknet STARK protocol, there are only two execution trace tables: the original trace table and the interaction trace table, the verifier challenges received in between is called the interaction challenges. Different Cairo layouts will give place to different trace tables and interaction challenges.</aside>
+
 * TODO: we should make this part agnostic to Cairo though.
 
 ### Composition Polynomial
