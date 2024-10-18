@@ -11,6 +11,8 @@ tags: ["starknet", "stark", "ethSTARK"]
 
 <aside class="warning">This specification is work-in-progress.</aside>
 
+<aside class="warning">The protocol specified here is not "zero-knowledge". It is purely aimed at providing succinctness. That is, it is useful to delegate computation.</aside>
+
 <aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
 
 <aside class="note">
@@ -31,7 +33,7 @@ Before we delve into the details, let's look at the protocol from a high-level p
 
 1. Construction of an interactive arithmetization. In this phase the prover commits to different parts of the execution trace it wants to prove, using random challenges in-between.
 2. Aggregation of constraints into a composition polynomial. In this phase the prover commits to a composition polynomial that, if checked by FRI, proves that the execution trace satisfies the constraints. It also produces evaluations of commitments at a random point so that the verifier can check that the composition polynomial is well-formed.
-3. Aggregation of FRI proofs and FRI protocol. The composition polynomial FRI check as well as evaluation proofs (using FRI-PCS) of all the sent evaluations are aggregtated into a single FRI check. The FRI protocol is then run to verify the aggregated FRI proof. See the [Starknet FRI Verifier Specification](fri.html) for more details.
+3. Aggregation of FRI proofs and FRI protocol. The composition polynomial FRI check as well as evaluation proofs (using FRI-PCS) of all the sent evaluations are aggregtated into a single FRI check. The FRI protocol is then run to verify the aggregated FRI proof. See the [Starknet FRI Verifier specification](fri.html) for more details.
 
 We illustrate the flow in the following diagram:
 
@@ -103,6 +105,12 @@ As such, the prover sends the needed evaluations to the verifier so that the ver
 With our previous example constraint, the prover would have to provide the evaluations of $f_0(\text{oods_point}), f_1(\text{oods_point}), f_0(\text{oods_point} \cdot w), h_0(\text{oods_point}), h_1(\text{oods_point})$.
 </aside>
 
+Notice that this "oods check" cannot happen in the domain used to index the trace polynomials. This is because the left-hand side involves divisions by domain polynomials $D_i(\text{oods_point})$, which might lead to divisions by zero. 
+
+<aside class="example">If $\text{oods_point} = w^3$ and the second constraint is associated to the whole 16-element domain, then the verifier would have to compute a division with $(w^3)^{16} - 1$ which would be a division by zero.</aside>
+
+This is why the oods point is called "out-of-domain sampling". Although nothing special is done when sampling this point, but the probability that it ends up in the trace domain is very low.
+
 TODO: explain what parts does the term "DEEP" refer to in this protocol.
 
 ### Aggregation and FRI Proof
@@ -110,13 +118,13 @@ TODO: explain what parts does the term "DEEP" refer to in this protocol.
 The verifier now has to:
 
 1. Perform a FRI check on $h_0(x) + x h_1(x)$ (which will verify the original prover claim that the trace polynomials satistify the constraints).
-2. Verify all the evaluations that were sent, the prover and the verifier can use FRI-PCS for that, as described in [the FRI-PCS section of the Starknet FRI Verifier Specification](fri.html#fri-pcs).
+2. Verify all the evaluations that were sent, the prover and the verifier can use FRI-PCS for that, as described in [the FRI-PCS section of the Starknet FRI Verifier specification](fri.html#fri-pcs).
 
 TODO: the second point also should have the effect of proving that the commitments to the trace column polynomials are correct (as they will also act as FRI checks)
 
-In order to avoid running multiple instances of the FRI protocol, the FRI Aggregation technique is used as described in [the Aggregating Multiple FRI Proofs section of the Starknet FRI Verifier Specification](fri.html#aggregating-multiple-fri-proofs). The verifier sends a challenge called `oods_alpha` which is used to aggregate all of the first layer of the previously discussed FRI proofs.
+In order to avoid running multiple instances of the FRI protocol, the FRI Aggregation technique is used as described in [the Aggregating Multiple FRI Proofs section of the Starknet FRI Verifier specification](fri.html#aggregating-multiple-fri-proofs). The verifier sends a challenge called `oods_alpha` which is used to aggregate all of the first layer of the previously discussed FRI proofs.
 
-Finally, the FRI protocol is run as described in [the Starknet FRI Verifier Specification](fri.html).
+Finally, the FRI protocol is run as described in [the Starknet FRI Verifier specification](fri.html).
 
 ## Constants
 
@@ -226,6 +234,17 @@ There are three types of domains:
 (TODO: and then typically moved to a coset). (TODO: why n_cosets then? can this be seen as a union of cosets formed from the trace domain?)
 
 As such, the generator of the trace domain can be found as $\omega_e =3^{(p-1)/n_t}$ (since $\omega_{e}^{n_t} = 1$), and the generator of the evaluation domain can be found as $\omega = 3^{(p-1)/n_e}$.
+
+<aside class="note">The reason for choosing a coset is two-folds. First, in ZK protocols you want to avoid decommitting actual witness values by querying points in the trace domain. Choosing another domain helps but is not sufficient. As this specification does not provide a ZK protocol. The second reason is the one that is interesting to us: it is an optimization reason. As the prover needs to compute the composition polynomial, they can do this in the monomial basis (using vectors of coefficient of the polynomials) but it is expensive. For this reason, they usually operate on polynomials using the lagrange basis (using vectors of evaluations of the polynomials). As such, calculating the composition polynomial leads to divisions by zero if the trace domain is used. The prover could in theory use any other domains, but they decide to use the same domain that they use to commit (the evaluation domain) to avoid having to interpolate and re-evaluate in the domain to commit (which would involve two FFTs).</aside>
+
+### Commitments
+
+Commitments to all the polynomials, before the FRI protocol, are done on evaluations of polynomials in the evaluation domain (as defined in the previous subsection).
+
+Commitments to all the polynomials, before the FRI protocol, are done using table commitments as described in the [Table Commitments section of the Merkle Tree Polynomial Commitments specification](merkle.html#table-commitments).
+
+* For trace polynomials in the interactive arithmetization phase, the tables committed into the leaves represent the evaluations of each of the trace columns at the same point.
+* For composition column polynomials in the composition polynomial phase, the tables committed into the leaves represent the evaluations of each of the composition columns at the same point.
 
 ### STARK commit
 
