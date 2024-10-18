@@ -11,8 +11,6 @@ tags: ["starknet", "stark", "ethSTARK"]
 
 <aside class="warning">This specification is work-in-progress.</aside>
 
-In this section we give an overview of the STARK protocol.
-
 <aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
 
 <aside class="note">
@@ -25,15 +23,44 @@ This protocol is instantiated in several places to our knowledge:
 </ul>
 </aside>
 
+In this section we give a brief overview of the Starknet STARK protocol.
+
+The protocol is divided in three main parts, which we will explain in more detail below:
+
 ![STARK overview](/img/starknet/stark_overview.png)
 
 ### AIR Arithmetization
 
-TKTK
+But first, we quickly remind the reader that the Starknet STARK protocol allows a prover to convince a verifier that an AIR (Algebraic Intermediate Representation) arithmetization is satisfied by their witness. This is generally augmented to also include a public input, usually via a [public memory](https://zksecurity.github.io/stark-book/cairo/memory.html) extension.
+
+AIR is essentially an indexed table of runtime values, on which a number of fixed constraints are agreed on:
+
+![air](/img/starknet/air.png)
 
 ### Interactive Arithmetization
 
 TKTK
+
+### Composition Polynomial
+
+TKTK
+
+#### Constraints To Prove
+
+TKTK
+
+#### Composition Polynomial and Schwartz-Zippel
+
+TKTK
+
+#### Evaluations And Evaluation Proofs
+
+* we use FRI-PCS as described in [the FRI-PCS section of the Starknet FRI Verifier Specification](fri.html#fri-pcs).
+
+### Aggregation and FRI Proof
+
+* we use FRI Aggregation as described in [the Aggregating Multiple FRI Proofs section of the Starknet FRI Verifier Specification](fri.html#aggregating-multiple-fri-proofs).
+* we use FRI as described in [the Starknet FRI Verifier Specification](fri.html).
 
 ### STARK
 
