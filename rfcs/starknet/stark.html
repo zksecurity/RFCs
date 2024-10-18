@@ -91,43 +91,83 @@ This protocol is instantiated in several places to our knowledge:
 </ul>
 </aside>
 
-<p>In this section we give a brief overview of the Starknet STARK protocol.</p>
-<p>The protocol is divided in three main parts, which we will explain in more detail below:</p>
+<p>In this section we give a brief overview of the Starknet STARK protocol.
+While the protocol used is designed to verify Cairo programs, we provide an agnostic specification.
+The instantiation of this protocol with Cairo should be the object of a different specification.</p>
+<p>Before we delve into the details, let's look at the protocol from a high-level protocol diagram point of view. The Starknet STARK protocol is divided in three main phases:</p>
+<ol>
+<li>Construction of an interactive arithmetization. In this phase the prover commits to different parts of the execution trace it wants to prove, using random challenges in-between.</li>
+<li>Aggregation of constraints into a composition polynomial. In this phase the prover commits to a composition polynomial that, if checked by FRI, proves that the execution trace satisfies the constraints. It also produces evaluations of commitments at a random point so that the verifier can check that the composition polynomial is well-formed.</li>
+<li>Aggregation of FRI proofs and FRI protocol. The composition polynomial FRI check as well as evaluation proofs (using FRI-PCS) of all the sent evaluations are aggregtated into a single FRI check. The FRI protocol is then run to verify the aggregated FRI proof. See the <a href="fri.html">Starknet FRI Verifier Specification</a> for more details.</li>
+</ol>
+<p>We illustrate the flow in the following diagram:</p>
 <p><img alt="STARK overview" src="/RFCs/img/starknet/stark_overview.png" /></p>
+<p>In the next sections we review the different phases.</p>
 <section>
-<h3>AIR Arithmetization</h3>
+<h3>Interactive AIR Arithmetization</h3>
 <p>But first, we quickly remind the reader that the Starknet STARK protocol allows a prover to convince a verifier that an AIR (Algebraic Intermediate Representation) arithmetization is satisfied by their witness. This is generally augmented to also include a public input, usually via a <a href="https://zksecurity.github.io/stark-book/cairo/memory.html">public memory</a> extension.</p>
-<p>AIR is essentially an indexed table of runtime values, on which a number of fixed constraints are agreed on:</p>
+<section>
+<h4>AIR Arithmetization</h4>
+<p>AIR is essentially two things:</p>
+<ol>
+<li>an indexed table representing the execution trace of a run, where columns can be seen as registers and the rows the values they take as one steps through a program. The table takes values when a prover tries to prove an execution. </li>
+<li>a list of fixed constraints that are agreed on. </li>
+</ol>
+<p>The indexing of the table is chosen as the elements of the smallest subgroup of power <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>2</mn></mrow></math> that can index the table.</p>
+<p>Furthermore, the columns of a table can be grouped, which allows the prover to fill the table group by group, using challenges from the verifier in-between. This is useful in order to perform an interactive arithmetization where parts of the encoded circuit needs verifier randomness to be computed.</p>
+<p>We give the example of two "original" columns and one "interaction" column, indexed using the multiplicative subgroup of the 16-th roots of unity:</p>
 <p><img alt="air" src="/RFCs/img/starknet/air.png" /></p>
+<p>Here one constraint could be to enforce that <code>col0[i] + col1[i] - col0[i+1] = 0</code> on every row <code>i</code> except the last one.</p>
+<p>As the columns of the table are later interpolated over the index domain, such constraints are usually described and applied as polynomials. So the previous example constraint would look like the following polynomial:</p>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mfrac><mrow><msub><mtext>col</mtext><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mtext>col</mtext><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mtext>col</mtext><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mi>&#x000B7;</mi><mi>w</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><msub><mi>D</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></mfrac></mrow></math>
+
+<p>where the domain polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>D</mi><mn>0</mn></msub></mrow></math> can be efficiently computed as <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mfrac><mrow><msup><mi>x</mi><mrow><mn>16</mn></mrow></msup><mo>&#x02212;</mo><mn>1</mn></mrow><mrow><msup><mi>w</mi><mrow><mn>15</mn></mrow></msup><mo>&#x02212;</mo><mn>1</mn></mrow></mfrac></mrow></math>.</p>
 </section>
 <section>
-<h3>Interactive Arithmetization</h3>
-<p>TKTK</p>
+<h4>Interactive Arithmetization</h4>
+<ul>
+<li>The first phase of the Starknet STARK protocol is to iteratively construct the trace tables (what we previously called interactive arithmetization).</li>
+<li>The prover sends commitments to parts of the table, and receives verifier challenges in between.</li>
+<li>In the instantiation of the Starknet STARK protocol, there are only two execution trace tables: the original trace table and the interaction trace table, the verifier challenges received in between is called the interaction challenges. Different Cairo layouts will give place to different trace tables and interaction challenges.</li>
+<li>TODO: we should make this part agnostic to Cairo though.</li>
+</ul>
+</section>
 </section>
 <section>
 <h3>Composition Polynomial</h3>
-<p>TKTK</p>
-<section>
-<h4>Constraints To Prove</h4>
-<p>TKTK</p>
-</section>
-<section>
-<h4>Composition Polynomial and Schwartz-Zippel</h4>
-<p>TKTK</p>
-</section>
-<section>
-<h4>Evaluations And Evaluation Proofs</h4>
+<p>The role of the verifier is now to verify constraints of the form of polynomials on the trace column polynomials, applied on a domain (a list of all the indexes on which the constraint applies).</p>
+<p>As with our example above, we can imagine a list of constraints <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>C</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> that need to vanish on a list of associated domains described by their domain polynomials <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>D</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math>.</p>
+<p>By definition, this can be reduced to checking that you can write each <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>C</mi><mi>i</mi></msub></mrow></math> as <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>C</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>D</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mi>&#x000B7;</mi><mi>q</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> for some quotient polynomial <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>q</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> of degree <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mi>e</mi><mi>g</mi><mo stretchy="false">&#x00028;</mo><msub><mi>C</mi><mi>i</mi></msub><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><mi>d</mi><mi>e</mi><mi>g</mi><mo stretchy="false">&#x00028;</mo><msub><mi>D</mi><mi>i</mi></msub><mo stretchy="false">&#x00029;</mo></mrow></math>.</p>
+<p>While protocols based on polynomial commitments like KZG would commit to the quotient polynomial and then prove the relation <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>C</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>D</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mi>&#x000B7;</mi><mi>q</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> at a random point (using Schwartz-Zippel), the Starknet STARK protocol uses a different approach: it uses a FRI check to prove that the commitment to the evaluations of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>q</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>C</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><msub><mi>D</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></mfrac></mrow></math> correctly represents a polynomial of low degree.</p>
+<p>As such, the role of the verifier is to verify that all the quotient polynomials associated to all the constraints exist and are of low-degree.</p>
+<p>TODO: define low-degree better</p>
+<p>As we want to avoid having to go through many FRI checks, the verifier sends a challenge <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B1;</mi></mrow></math> which the prover can use to aggregate all of the constraint quotient polynomials into a <strong>composition polynomial</strong> <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mi>:</mi><mo>&#x0003D;</mo><msub><mo>&#x02211;</mo><mrow><mi>i</mi><mo>&#x0003D;</mo><mn>0</mn></mrow></msub><mfrac><mrow><msub><mi>C</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><msub><mi>D</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mi>&#x000B7;</mi><msup><mi>&#x003B1;</mi><mi>i</mi></msup></mrow></mfrac></mrow></math>.</p>
+<p>This composition polynomial is quite big, so the prover provides a commitment to chunks or columns of the composition polynomials, interpreting <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi></mrow></math> as <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mo>&#x02211;</mo><mi>i</mi></msub><msub><mi>h</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><msup><mi>x</mi><mi>i</mi></msup></mrow></math>.</p>
+<aside class="note">In the instantation of this specification with Cairo, there are only two composition column polynomials: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>h</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mi>&#x000B7;</mi><mi>x</mi></mrow></math>.</aside>
+<p>.</p>
+<p>Finally, to allow the verifier to check that <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi></mrow></math> has correctly been committed, Schwartz-Zippel is used with a random verifier challenge called the "oods point". Specifically, the verifier evaluates the following and check that they match:</p>
 <ul>
-<li>we use FRI-PCS as described in <a href="fri.html#fri-pcs">the FRI-PCS section of the Starknet FRI Verifier Specification</a>.</li>
+<li>the left-hand side <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mo>&#x02211;</mo><mrow><mi>i</mi><mo>&#x0003D;</mo><mn>0</mn></mrow></msub><mfrac><mrow><msub><mi>C</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo></mrow><mrow><msub><mi>D</mi><mi>i</mi></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo></mrow></mfrac><mi>&#x000B7;</mi><msup><mi>&#x003B1;</mi><mi>i</mi></msup></mrow></math> </li>
+<li>the right-hand side <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>h</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo><mi>&#x000B7;</mi><mtext>oods_point</mtext></mrow></math></li>
 </ul>
-</section>
+<p>Of course, the verifier cannot evaluate both sides without the help of the prover! The left-hand side involves evaluations of the trace polynomials at the oods point (and potentially shifted oods points), and the right-hand side involves evaluations of the composition column polynomials at the oods point as well.</p>
+<p>As such, the prover sends the needed evaluations to the verifier so that the verifier can perform the check. (These evaluations are often referred to as the "mask" values.)</p>
+<aside class="example">
+With our previous example constraint, the prover would have to provide the evaluations of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>f</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo><mo>&#x0002C;</mo><msub><mi>f</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo><mo>&#x0002C;</mo><msub><mi>f</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mi>&#x000B7;</mi><mi>w</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002C;</mo><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo><mo>&#x0002C;</mo><msub><mi>h</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mtext>oods_point</mtext><mo stretchy="false">&#x00029;</mo></mrow></math>.
+</aside>
+
+<p>TODO: explain what parts does the term "DEEP" refer to in this protocol.</p>
 </section>
 <section>
 <h3>Aggregation and FRI Proof</h3>
-<ul>
-<li>we use FRI Aggregation as described in <a href="fri.html#aggregating-multiple-fri-proofs">the Aggregating Multiple FRI Proofs section of the Starknet FRI Verifier Specification</a>.</li>
-<li>we use FRI as described in <a href="fri.html">the Starknet FRI Verifier Specification</a>.</li>
-</ul>
+<p>The verifier now has to:</p>
+<ol>
+<li>Perform a FRI check on <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><msub><mi>h</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> (which will verify the original prover claim that the trace polynomials satistify the constraints).</li>
+<li>Verify all the evaluations that were sent, the prover and the verifier can use FRI-PCS for that, as described in <a href="fri.html#fri-pcs">the FRI-PCS section of the Starknet FRI Verifier Specification</a>.</li>
+</ol>
+<p>TODO: the second point also should have the effect of proving that the commitments to the trace column polynomials are correct (as they will also act as FRI checks)</p>
+<p>In order to avoid running multiple instances of the FRI protocol, the FRI Aggregation technique is used as described in <a href="fri.html#aggregating-multiple-fri-proofs">the Aggregating Multiple FRI Proofs section of the Starknet FRI Verifier Specification</a>. The verifier sends a challenge called <code>oods_alpha</code> which is used to aggregate all of the first layer of the previously discussed FRI proofs.</p>
+<p>Finally, the FRI protocol is run as described in <a href="fri.html">the Starknet FRI Verifier Specification</a>.</p>
 </section>
 <section>
 <h3>STARK</h3>
