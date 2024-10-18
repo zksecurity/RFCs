@@ -121,10 +121,6 @@ In order to avoid running multiple instances of the FRI protocol, the FRI Aggreg
 
 Finally, the FRI protocol is run as described in [the Starknet FRI Verifier Specification](fri.html).
 
-### STARK
-
-TKTK
-
 ## Constants
 
 TKTK
