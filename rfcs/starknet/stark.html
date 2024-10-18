@@ -79,7 +79,6 @@
 <h2>Overview</h2>
 <aside class="warning">This specification is work-in-progress.</aside>
 
-<p>In this section we give an overview of the STARK protocol.</p>
 <aside class="note">Note that the protocol implemented closely resembles the high-level explanations of the <a href="https://eprint.iacr.org/2021/582">ethSTARK paper</a>, as such we refer to it in places.</aside>
 
 <aside class="note">
@@ -92,14 +91,43 @@ This protocol is instantiated in several places to our knowledge:
 </ul>
 </aside>
 
+<p>In this section we give a brief overview of the Starknet STARK protocol.</p>
+<p>The protocol is divided in three main parts, which we will explain in more detail below:</p>
 <p><img alt="STARK overview" src="/RFCs/img/starknet/stark_overview.png" /></p>
 <section>
 <h3>AIR Arithmetization</h3>
-<p>TKTK</p>
+<p>But first, we quickly remind the reader that the Starknet STARK protocol allows a prover to convince a verifier that an AIR (Algebraic Intermediate Representation) arithmetization is satisfied by their witness. This is generally augmented to also include a public input, usually via a <a href="https://zksecurity.github.io/stark-book/cairo/memory.html">public memory</a> extension.</p>
+<p>AIR is essentially an indexed table of runtime values, on which a number of fixed constraints are agreed on:</p>
+<p><img alt="air" src="/RFCs/img/starknet/air.png" /></p>
 </section>
 <section>
 <h3>Interactive Arithmetization</h3>
 <p>TKTK</p>
+</section>
+<section>
+<h3>Composition Polynomial</h3>
+<p>TKTK</p>
+<section>
+<h4>Constraints To Prove</h4>
+<p>TKTK</p>
+</section>
+<section>
+<h4>Composition Polynomial and Schwartz-Zippel</h4>
+<p>TKTK</p>
+</section>
+<section>
+<h4>Evaluations And Evaluation Proofs</h4>
+<ul>
+<li>we use FRI-PCS as described in <a href="fri.html#fri-pcs">the FRI-PCS section of the Starknet FRI Verifier Specification</a>.</li>
+</ul>
+</section>
+</section>
+<section>
+<h3>Aggregation and FRI Proof</h3>
+<ul>
+<li>we use FRI Aggregation as described in <a href="fri.html#aggregating-multiple-fri-proofs">the Aggregating Multiple FRI Proofs section of the Starknet FRI Verifier Specification</a>.</li>
+<li>we use FRI as described in <a href="fri.html">the Starknet FRI Verifier Specification</a>.</li>
+</ul>
 </section>
 <section>
 <h3>STARK</h3>

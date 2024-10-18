@@ -255,7 +255,7 @@ $$
 
 Specifically, FRI-PCS proves that they can produce such a (commitment to a) polynomial $q$.
 
-### Aggregating multiple FRI proofs
+### Aggregating Multiple FRI Proofs
 
 To prove that two polynomials $a$ and $b$ exist and are of degree at most $d$, a prove simply prove that a random linear combination of $a$ and $b$ exists and is of degree at most $d$.
 
@@ -263,7 +263,7 @@ TODO: what if the different polynomials are of different degrees?
 
 TODO: we do not make use of aggregation here, the way the first layer polynomial is created is sort of transparent here, is it still worth having this section?
 
-## Notable differences with vanilla FRI
+## Notable Differences With Vanilla FRI
 
 Besides obvious missing implementation details from the description above, the protocol is pretty much instantiated as is, except for a few changes to the folding and querying process.
 
