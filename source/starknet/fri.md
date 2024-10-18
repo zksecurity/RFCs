@@ -386,63 +386,24 @@ The FRI protocol is globally parameterized according to the following variables 
 
 **`proof_of_work_bits`**. The number of bits required for the proof of work. This value should be between 20 and 50.
 
-### Commitment configuration
-
-The protocol as implemented accepts proofs created using different parameters. This allows provers to decide on the trade-offs between proof size, prover time and space complexity, and verifier time and space complexity. 
-
-A FRI layer reduction can be configured with the following fields:
-
-**`table_n_columns`**. The number of values committed in each leaf of the Merkle tree. As explained in the overview, each FRI reduction makes predictible related queries to each layer, as such related points are grouped together to reduce multiple related queries to a single one.
-
-**`vector_height`**. The height of the Merkle tree. See the FRI config below to understand how this is validated. (TODO: why do we carry this if we already know the domain size there?)
-
-**`vector_n_verifier_friendly_commitment_layers`**. The number of layers (starting from the bottom) that use a circuit-friendly hash (TODO: double check). (TODO: remove this level of detail? maybe not if this has to match the proof format)
-
-```rust
-struct VectorCommitmentConfig {
-    height: felt252,
-    n_verifier_friendly_commitment_layers: felt252,
-}
-
-struct TableCommitmentConfig {
-    n_columns: felt252,
-    vector: VectorCommitmentConfig,
-}
-```
-
 ### FRI configuration
 
 A FRI configuration contains the following fields:
 
 **`log_input_size`**. The size of the input layer to FRI (the number of evaluations committed). (TODO: double check)
 
-**`n_layers`**. The number of layers or folding that will occur as part of the FRI proof.
+**`n_layers`**. The number of layers or folding that will occur as part of the FRI proof. This value must be within the range `[2, MAX_FRI_LAYERS]` (see constants).
 
-**`inner_layers`**. The configuration for each of the layers (minus the first layer).
+**`inner_layers`**. An array of `TableCommitmentConfig` where each configuration represent what is expected of each commitment sent as part of the FRI proof. Refer to the [Table Commitments section of the Starknet Merkle Tree Polynomial Commitments specification](merkle.html#table-commitments).
 
-**`fri_step_sizes`**. The number of layers to skip for each folding/reduction of the protocol.
+**`fri_step_sizes`**. The number of layers to skip for each folding/reduction of the protocol. The first step must always be zero, as no layer is skipped during the first reduction. Each step should be within the range `[1, MAX_FRI_STEP]`. For each step, the corresponding layer `inner_layers[i-1]` should have enough columns to support the reduction: `n_columns = 2^fri_step`.
 
-**`log_last_layer_degree_bound`**. The degree of the last layer's polynomial. As it is sent in clear as part of the FRI protocol, this value represents the (log) number of coefficients (minus 1) that the proof will contain.
+**`log_last_layer_degree_bound`**. The degree of the last layer's polynomial. As it is sent in clear as part of the FRI protocol, this value represents the (log) number of coefficients (minus 1) that the proof will contain. It must be less or equal to `MAX_LAST_LAYER_LOG_DEGREE_BOUND` (see constants).
 
-```rust
-struct FriConfig {
-    log_input_size: felt252,
-    n_layers: felt252,
-    inner_layers: Span<TableCommitmentConfig>,
-    fri_step_sizes: Span<felt252>,
-    log_last_layer_degree_bound: felt252,
-}
-```
+TODO: move these validation steps in the description of the fields above
 
-TODO: validate(cfg, log_n_cosets, n_verified_friendly_commitment_layers):
-
-* the number of layers `n_layers` must be within the range `[2, MAX_FRI_LAYERS]` (see constants)
-* the `log_last_layer_degree_bound` must be less or equal to `MAX_LAST_LAYER_LOG_DEGREE_BOUND`
-* the first`fri_step_sizes[0]` must be 0 (TODO: explain why)
 * for every `fri_step_sizes[i]` check:
-    * that the step `fri_step_sizes[i]` is within the range `[1, MAX_FRI_STEP]`
     * that the previous layer table commitment configuration `inner_Layers[i-1]` has
-      * a number of columns `n_columns = 2^fri_step` (TODO: why?)
       * a valid configuration, which can be verified using the expected log input size and the `n_verifier_friendly_commitment_layers`
         * expected log input size should be the input size minus all the step sizes so far
 * the `log_expected_input_degree + log_n_cosets == log_input_size`

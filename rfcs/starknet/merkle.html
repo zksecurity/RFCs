@@ -93,21 +93,31 @@
 <p><strong><code>MONTGOMERY_R = 3618502788666127798953978732740734578953660990361066340291730267701097005025</code></strong>. The Montgomery form of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>256</mn></mrow></msup><mspace width="1em" /><mi>mod</mi><mspace width="0.333em" /><mtext>STARK_PRIME</mtext></mrow></math>.</p>
 </section>
 <section>
-<h2>Vector commitments</h2>
-<p>A vector commitment is simply a Merkle tree. </p>
+<h2>Vector Commitments</h2>
+<p>A vector commitment is simply a Merkle tree. It is configured with two fields:</p>
+<ul>
+<li><code>height</code>: the height of the Merkle tree</li>
+<li><code>n_verifier_friendly_commitment_layers</code>: the depth at which layers will start using the verifier-friendly hash.</li>
+</ul>
 <p><img alt="tree indexing" src="/RFCs/img/starknet/tree_indexing.png" /></p>
 <p><img alt="vector commit" src="/RFCs/img/starknet/vector_commit.png" /></p>
 </section>
 <section>
-<h2>Table commitments</h2>
+<h2>Table Commitments</h2>
 <p>A table commitment in this context is a vector commitment where leaves are hashes of multiple values. Or in other words, a leaf can be seen as a hash of a table of multiple columns and a single row.</p>
+<p>It can be configured with two fields:</p>
+<ul>
+<li><code>n_columns</code>: the number of columns in each leaf of the tree</li>
+<li><code>vector</code>: the vector commitment configuration (see previous section).</li>
+</ul>
 <p>A few examples:</p>
 <ul>
 <li>the trace polynomials in the <a href="stark.html">STARK verifier specification</a> are table commitments where each leaf is a hash of the evaluations of all the trace column polynomials at the same point</li>
 <li>the composition polynomial in the <a href="stark.html">STARK verifier specification</a> is a table commitment where each leaf is a hash of the evaluations of the composition polynomial columns at the same point</li>
 <li>the FRI layer commitments in the <a href="fri.html">FRI verifier specification</a> are table commitments where each leaf is a hash of the evaluations of the FRI layer columns at associated points (e.g. <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>)</li>
 </ul>
-<p>Note that values are multiplied to the <code>MONTGOMERY_R</code> constant before being hashed as leaves in the tree. TODO: explain why</p>
+<p>Note that values are multiplied to the <code>MONTGOMERY_R</code> constant before being hashed as leaves in the tree. </p>
+<p>TODO: explain why montgomery</p>
 </section>
 <section>
 <h2>Index to Path Conversion</h2>
