@@ -24,43 +24,102 @@ This protocol is instantiated in several places to our knowledge:
 </aside>
 
 In this section we give a brief overview of the Starknet STARK protocol.
+While the protocol used is designed to verify Cairo programs, we provide an agnostic specification.
+The instantiation of this protocol with Cairo should be the object of a different specification.
 
-The protocol is divided in three main parts, which we will explain in more detail below:
+Before we delve into the details, let's look at the protocol from a high-level protocol diagram point of view. The Starknet STARK protocol is divided in three main phases:
+
+1. Construction of an interactive arithmetization. In this phase the prover commits to different parts of the execution trace it wants to prove, using random challenges in-between.
+2. Aggregation of constraints into a composition polynomial. In this phase the prover commits to a composition polynomial that, if checked by FRI, proves that the execution trace satisfies the constraints. It also produces evaluations of commitments at a random point so that the verifier can check that the composition polynomial is well-formed.
+3. Aggregation of FRI proofs and FRI protocol. The composition polynomial FRI check as well as evaluation proofs (using FRI-PCS) of all the sent evaluations are aggregtated into a single FRI check. The FRI protocol is then run to verify the aggregated FRI proof. See the [Starknet FRI Verifier Specification](fri.html) for more details.
+
+We illustrate the flow in the following diagram:
 
 ![STARK overview](/img/starknet/stark_overview.png)
 
-### AIR Arithmetization
+In the next sections we review the different phases.
+
+### Interactive AIR Arithmetization
 
 But first, we quickly remind the reader that the Starknet STARK protocol allows a prover to convince a verifier that an AIR (Algebraic Intermediate Representation) arithmetization is satisfied by their witness. This is generally augmented to also include a public input, usually via a [public memory](https://zksecurity.github.io/stark-book/cairo/memory.html) extension.
 
-AIR is essentially an indexed table of runtime values, on which a number of fixed constraints are agreed on:
+#### AIR Arithmetization
+
+AIR is essentially two things:
+
+1. an indexed table representing the execution trace of a run, where columns can be seen as registers and the rows the values they take as one steps through a program. The table takes values when a prover tries to prove an execution. 
+2. a list of fixed constraints that are agreed on. 
+
+The indexing of the table is chosen as the elements of the smallest subgroup of power $2$ that can index the table.
+
+Furthermore, the columns of a table can be grouped, which allows the prover to fill the table group by group, using challenges from the verifier in-between. This is useful in order to perform an interactive arithmetization where parts of the encoded circuit needs verifier randomness to be computed.
+
+We give the example of two "original" columns and one "interaction" column, indexed using the multiplicative subgroup of the 16-th roots of unity:
 
 ![air](/img/starknet/air.png)
 
-### Interactive Arithmetization
+Here one constraint could be to enforce that `col0[i] + col1[i] - col0[i+1] = 0` on every row `i` except the last one.
 
-TKTK
+As the columns of the table are later interpolated over the index domain, such constraints are usually described and applied as polynomials. So the previous example constraint would look like the following polynomial:
+
+$$\frac{\text{col}_0(x) + \text{col}_1(x) - \text{col}_0(x \cdot w)}{D_0(x)}$$
+
+where the domain polynomial $D_0$ can be efficiently computed as $\frac{x^{16} - 1}{w^{15} - 1}$.
+
+#### Interactive Arithmetization
+
+* The first phase of the Starknet STARK protocol is to iteratively construct the trace tables (what we previously called interactive arithmetization).
+* The prover sends commitments to parts of the table, and receives verifier challenges in between.
+* In the instantiation of the Starknet STARK protocol, there are only two execution trace tables: the original trace table and the interaction trace table, the verifier challenges received in between is called the interaction challenges. Different Cairo layouts will give place to different trace tables and interaction challenges.
+* TODO: we should make this part agnostic to Cairo though.
 
 ### Composition Polynomial
 
-TKTK
+The role of the verifier is now to verify constraints of the form of polynomials on the trace column polynomials, applied on a domain (a list of all the indexes on which the constraint applies).
 
-#### Constraints To Prove
+As with our example above, we can imagine a list of constraints $C_i(x)$ that need to vanish on a list of associated domains described by their domain polynomials $D_i(x)$.
 
-TKTK
+By definition, this can be reduced to checking that you can write each $C_i$ as $C_i(x) = D_i(x) \cdot q(x)$ for some quotient polynomial $q(x)$ of degree $deg(C_i) - deg(D_i)$.
 
-#### Composition Polynomial and Schwartz-Zippel
+While protocols based on polynomial commitments like KZG would commit to the quotient polynomial and then prove the relation $C_i(x) = D_i(x) \cdot q(x)$ at a random point (using Schwartz-Zippel), the Starknet STARK protocol uses a different approach: it uses a FRI check to prove that the commitment to the evaluations of $q(x) = \frac{C_i(x)}{D_i(x)}$ correctly represents a polynomial of low degree.
 
-TKTK
+As such, the role of the verifier is to verify that all the quotient polynomials associated to all the constraints exist and are of low-degree.
 
-#### Evaluations And Evaluation Proofs
+TODO: define low-degree better
 
-* we use FRI-PCS as described in [the FRI-PCS section of the Starknet FRI Verifier Specification](fri.html#fri-pcs).
+As we want to avoid having to go through many FRI checks, the verifier sends a challenge $\alpha$ which the prover can use to aggregate all of the constraint quotient polynomials into a **composition polynomial** $h(x) := \sum_{i=0} \frac{C_i(x)}{D_i(x) \cdot \alpha^i$.
+
+This composition polynomial is quite big, so the prover provides a commitment to chunks or columns of the composition polynomials, interpreting $h$ as $h(x) = \sum_i h_i(x) x^i$.
+
+<aside class="note">In the instantation of this specification with Cairo, there are only two composition column polynomials: $h(x) = h_0(x) + h_1(x) \cdot x$.</aside>.
+
+Finally, to allow the verifier to check that $h$ has correctly been committed, Schwartz-Zippel is used with a random verifier challenge called the "oods point". Specifically, the verifier evaluates the following and check that they match:
+
+* the left-hand side $\sum_{i=0} \frac{C_i(\text{oods_point})}{D_i(\text{oods_point})} \cdot \alpha^i$ 
+* the right-hand side $h_0(\text{oods_point}) + h_1(\text{oods_point}) \cdot \text{oods_point}$
+
+Of course, the verifier cannot evaluate both sides without the help of the prover! The left-hand side involves evaluations of the trace polynomials at the oods point (and potentially shifted oods points), and the right-hand side involves evaluations of the composition column polynomials at the oods point as well.
+
+As such, the prover sends the needed evaluations to the verifier so that the verifier can perform the check. (These evaluations are often referred to as the "mask" values.)
+
+<aside class="example">
+With our previous example constraint, the prover would have to provide the evaluations of $f_0(\text{oods_point}), f_1(\text{oods_point}), f_0(\text{oods_point} \cdot w), h_0(\text{oods_point}), h_1(\text{oods_point})$.
+</aside>
+
+TODO: explain what parts does the term "DEEP" refer to in this protocol.
 
 ### Aggregation and FRI Proof
 
-* we use FRI Aggregation as described in [the Aggregating Multiple FRI Proofs section of the Starknet FRI Verifier Specification](fri.html#aggregating-multiple-fri-proofs).
-* we use FRI as described in [the Starknet FRI Verifier Specification](fri.html).
+The verifier now has to:
+
+1. Perform a FRI check on $h_0(x) + x h_1(x)$ (which will verify the original prover claim that the trace polynomials satistify the constraints).
+2. Verify all the evaluations that were sent, the prover and the verifier can use FRI-PCS for that, as described in [the FRI-PCS section of the Starknet FRI Verifier Specification](fri.html#fri-pcs).
+
+TODO: the second point also should have the effect of proving that the commitments to the trace column polynomials are correct (as they will also act as FRI checks)
+
+In order to avoid running multiple instances of the FRI protocol, the FRI Aggregation technique is used as described in [the Aggregating Multiple FRI Proofs section of the Starknet FRI Verifier Specification](fri.html#aggregating-multiple-fri-proofs). The verifier sends a challenge called `oods_alpha` which is used to aggregate all of the first layer of the previously discussed FRI proofs.
+
+Finally, the FRI protocol is run as described in [the Starknet FRI Verifier Specification](fri.html).
 
 ### STARK
 
