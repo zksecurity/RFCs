@@ -22,17 +22,25 @@ Commitments of polynomials are done using [Merkle trees](https://en.wikipedia.or
 
 **`MONTGOMERY_R = 3618502788666127798953978732740734578953660990361066340291730267701097005025`**. The Montgomery form of $2^{256} \mod \text{STARK_PRIME}$.
 
-## Vector commitments
+## Vector Commitments
 
-A vector commitment is simply a Merkle tree. 
+A vector commitment is simply a Merkle tree. It is configured with two fields:
+
+* `height`: the height of the Merkle tree
+* `n_verifier_friendly_commitment_layers`: the depth at which layers will start using the verifier-friendly hash.
 
 ![tree indexing](/img/starknet/tree_indexing.png)
 
 ![vector commit](/img/starknet/vector_commit.png)
 
-## Table commitments
+## Table Commitments
 
 A table commitment in this context is a vector commitment where leaves are hashes of multiple values. Or in other words, a leaf can be seen as a hash of a table of multiple columns and a single row.
+
+It can be configured with two fields:
+
+* `n_columns`: the number of columns in each leaf of the tree
+* `vector`: the vector commitment configuration (see previous section).
 
 A few examples:
 
@@ -40,7 +48,9 @@ A few examples:
 * the composition polynomial in the [STARK verifier specification](stark.html) is a table commitment where each leaf is a hash of the evaluations of the composition polynomial columns at the same point
 * the FRI layer commitments in the [FRI verifier specification](fri.html) are table commitments where each leaf is a hash of the evaluations of the FRI layer columns at associated points (e.g. $v$ and $-v$)
 
-Note that values are multiplied to the `MONTGOMERY_R` constant before being hashed as leaves in the tree. TODO: explain why
+Note that values are multiplied to the `MONTGOMERY_R` constant before being hashed as leaves in the tree. 
+
+TODO: explain why montgomery
 
 ## Index to Path Conversion
 
