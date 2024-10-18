@@ -126,11 +126,33 @@ In order to avoid running multiple instances of the FRI protocol, the FRI Aggreg
 
 Finally, the FRI protocol is run as described in [the Starknet FRI Verifier specification](fri.html).
 
+## Dependencies
+
+In this section we list all of the dependencies and interfaces this standard relies on.
+
+### AIR Arithmetization Dependency
+
+While this specification was written with Cairo in mind, it should be instantiatiable with any AIR arithmetization that can be verified using the STARK protocol.
+
+A protocol that wants to use this specification should provide the following:
+
+**interactive arithmetization**. A description of the interactive arithmetization step, which should include in what order the different tables are committed and what verifier challenges are sent in-between.
+
+**`eval_composition_polynomial`**. A function that takes all of the commitments, all of the evaluations, and a number of Merkle tree witnesses sent by the prover and produces an evaluation of the composition polynomial at the oods point. (This evaluation will depend heavily on the number of trace columns and the constraints of the given AIR arithmetization.) The function is expected to verify any decommitment (via the Merkle tree witnesses) that it uses.
+
+**`eval_oods_polynomial`**. A function that takes all of the commitments, all of the evaluations, and a number of Merkle tree witnesses sent by the prover and produces a list of evaluations of the first layer polynomial of the FRI check at a list of queried points. The function is expected to verify any decommitment (via the Merkle tree witnesses) that it uses.
+
+We refer to the [Merkle Tree Polynomial Commitments specification](merkle.html) on how to verify decommitments.
+
 ## Constants
 
-TKTK
+We use the following constants throughout the protocol.
 
-## Dependencies
+### Protocol constants
+
+**`STARKNET_PRIME = 3618502788666131213697322783095070105623107215331596699973092056135872020481`**. The Starknet prime ($2^{251} + 17 \cdot 2^{192} + 1$).
+
+**`FIELD_GENERATOR = 3`**. The generator for the main multiplicative subgroup of the Starknet field. This is also used as coset factor to produce the coset used in the first layer's evaluation.
 
 ### Hash function
 
@@ -138,11 +160,11 @@ TKTK
 
 ### Channel
 
-See the [Channel specification](channel.html).
+See the [Channel specification](channel.html) for more details.
 
 ### FRI
 
-See the [FRI specification](fri.html).
+See the [Starknet FRI Verifier specification](fri.html).
 
 Specifically, we expose the following functions:
 
@@ -151,7 +173,7 @@ Specifically, we expose the following functions:
 * `fri_verify_step`
 * `fri_verify_final`
 
-as well as the two objects `FriVerificationStateConstant, FriVerificationStateVariable` defined in that specification.
+as well as the two objects `FriVerificationStateConstant`, `FriVerificationStateVariable` defined in that specification.
 
 ## Configuration
 
@@ -175,33 +197,15 @@ struct StarkConfig {
 
 To validate:
 
-* proof of work is validated as part of the FRI configuration validation
 * compute the log of the evaluation domain size as the log of the trace domain size plus the log of the number of cosets
   * if every coset is of size $2^{n_t}$ with $n_t$ the `log_trace_domain_size`, and there is $2^{n_c}$ cosets, then the evaluation domain size is expected to be $2^{n_t + n_c}$ (TODO: explain why we talk about cosets here)
 * traces.validate() (TODO)
-* composition.vector.validate()
-* the FRI configuration is validated as part of the FRI configuration validation
+* composition.vector.validate() (TODO)
+* the rest (proof of work, FRI configuration) is validated as part of the FRI configuration validation
 
-```rust
-        self
-            .composition
-            .vector
-            .validate(log_eval_domain_size, *self.n_verifier_friendly_commitment_layers);
+## Buiding Blocks
 
-        // Validate Fri config.
-        self.fri.validate(*self.log_n_cosets, *self.n_verifier_friendly_commitment_layers);
-
-        // Security bits.
-        let n_queries: u32 = (*self.n_queries).try_into().unwrap();
-        let log_n_cosets: u32 = (*self.log_n_cosets).try_into().unwrap();
-        let proof_of_work_bits: u32 = (*self.proof_of_work.n_bits).try_into().unwrap();
-
-        n_queries * log_n_cosets + proof_of_work_bits
-    }
-}
-```
-
-## Main STARK functions / Buiding blocks
+The verifier accepts the following proof as argument:
 
 ```rust
 struct StarkProof {
@@ -223,9 +227,9 @@ struct StarkUnsentCommitment {
 }
 ```
 
-### Trace and Evaluation Domains
+We assume that the public input is instantiated and verified by the parent protocol, and thus is out of scope of this standard.
 
-TODO: is this section useful?
+### Trace and Evaluation Domains
 
 There are three types of domains:
 
@@ -248,33 +252,31 @@ Commitments to all the polynomials, before the FRI protocol, are done using tabl
 
 ### STARK commit
 
-The goal of the STARK commit is to process all of the commitments produced by the prover during the protocol (including the FRI commitments), as well as produce the verifier challenges:
+The goal of the STARK commit is to process all of the commitments produced by the prover during the protocol (including the FRI commitments), as well as produce the verifier challenges.
 
-1. Absorb the original table with the channel.
-2. Sample the interaction challenges (e.g. z and alpha for the memory check argument (different alpha called memory_alpha to distinguish it from the alpha used to aggregate the different constraints into the composition polynomial)).
-3. Absorb the interaction table with the channel.
-4. Sample the alpha challenge ("composition_alpha") to aggregate all the constraint quotient polynomials (caches the powers of alpha into "traces_coefficients").
-5. Absorb the composition columns (the $h_i$ in $h(x) = \sum_i h_i x^i$) with the channel.
-6. Sample the oods point (`interaction_after_composition`).
-7. Absorb all evaluations with the channel.
-8. Verify that the composition polynomial is correct by checking that its evaluation at the oods point is correct using some of the evaluations $\sum_j C_j(\text{oods_point}) = \sum_i h_i(\text{oods_point}) \times \text{oods_point}^i$ (where the left hand side will need evaluations of the trace polynomials (called maks values) and the right hand side will need evaluations of the composition column polynomials, everything is in that oods vector)
-9. Sample the oods_alpha challenge with the channel.
-10. Call `fri_commit`
+1. Interactive arithmetization to absorb the execution trace tables.
+   1. Absorb the original table with the channel.
+   2. Sample the interaction challenges (e.g. z and alpha for the memory check argument (different alpha called memory_alpha to distinguish it from the alpha used to aggregate the different constraints into the composition polynomial)).
+   3. Absorb the interaction table with the channel.
+1. Produce the aggregation of the constraint quotient polynomials as the composition polynomial.
+   1. Sample the alpha challenge ("composition_alpha") to aggregate all the constraint quotient polynomials (caches the powers of alpha into "traces_coefficients").
+   2. Absorb the composition columns (the $h_i$ in $h(x) = \sum_i h_i x^i$) with the channel.
+   3. Sample the oods point (`interaction_after_composition`).
+   4. Absorb all evaluations with the channel.
+   5. Verify that the composition polynomial is correct by checking that its evaluation at the oods point is correct using some of the evaluations $\sum_j \frac{C_j(\text{oods_point})}{D_j(\text{odds_point})} = \sum_i h_i(\text{oods_point}) \times \text{oods_point}^i$.
+      1. The right-hand side can be computed directly using the evaluations sent by the prover
+      2. The left-hand side has to be computed using the `eval_composition_polynomial` function defined in the [AIR Arithemtization Dependency section](#air-arithmetization-dependency).
+2. Produce a challenge to aggregate all FRI checks and run the FRI protocol
+   1. Sample the oods_alpha challenge with the channel.
+   2. Call `fri_commit`.
 
 ### STARK verify
 
 The goal of STARK verify is to verify evaluation queries (by checking that evaluations exist in the committed polynomials) and the FRI queries (by running the FRI verification).
 
-To do this, we simply call the `fri_verify_initial` function contained in the FRI specification, and giving it the following oracle:
+To do this, we simply call the `fri_verify_initial` function contained in the FRI specification, and giving it the values computed by `eval_oods_polynomial` (as defined in the [AIR Arithmetization Dependency section](#air-arithmetization-dependency)) as first evaluations associated to the queried points.
 
-The oracle should provide the evaluations, under the same set of FRI queries (and specifically the point they are requesting the evaluations at) of the following polynomials:
-
-* the traces polynomials, which include both the original trace polynomial and the interaction trace polynomial)
-* the composition column polynomials
-
-In addition the oracle should verify decommitment proofs (Merkle membership proofs) for each of these evaluations. We refer to the [Merkle Tree Polynomial Commitments specification](merkle.html) on how to verify evaluation proofs.
-
-<aside class="warning">The logic of the oracle must be implemented as part of the verification. The term "oracle" simply refers to an opaque callback function from the FRI protocol's perspective.</aside>
+<aside class="note">These evaluations will only provide evaluations of the first layer polynomial $p_0$ at query points $v_i$. The prover will witness evaluations at $-v_i$ by themselves and prove that they are present in the first FRI commitment (of the polynomial $p_0$.</aside>
 
 ## Full Protocol
 
