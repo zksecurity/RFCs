@@ -240,9 +240,7 @@ Specifically, FRI-PCS proves that they can produce such a (commitment to a) poly
 
 To prove that two polynomials $a$ and $b$ exist and are of degree at most $d$, a prover simply shows using FRI that a random linear combination of $a$ and $b$ exists and is of degree at most $d$.
 
-TODO: what if the different polynomials are of different degrees?
-
-TODO: we do not make use of aggregation here, the way the first layer polynomial is created is sort of transparent here, is it still worth having this section?
+Note that if the FRI check might need to take into account the different degree checks that are being aggregated. For example, if the polynomial $a$ should be of degree at most $d$ but the polynomial should be of degree at most $d+3$ then a degree correction needs to happen. We refer to the [ethSTARK paper](https://eprint.iacr.org/2021/582) for more details as this is out of scope for this specification. (As used in the STARK protocol targeted by this specification, it is enough to show that the polynomials are of low degree.)
 
 ## Notable Differences With Vanilla FRI
 
@@ -292,7 +290,7 @@ $$
 p_1((v'^2) = p_0(v) + p_0(-v) + \zeta_0 \cdot \frac{p_0(v) - p_0(-v)}{v'}
 $$
 
-<aside class="note">we assume no skipped layers, which is always the case in this specification for the first layer's reduction.</aside>
+<aside class="note">We assume no skipped layers, which is always the case in this specification for the first layer's reduction.</aside>
 
 After that, everything happens as normal (except that now the prover uses the original blown-up trace domain instead of a coset to evaluate and commit to the layer polynomials).
 
@@ -313,11 +311,13 @@ We rely on two type of hash functions:
 
 See the [Channel](channel.html) specification for details.
 
-### Evaluations of the first FRI layer
+### Verifying the first FRI layer
 
-As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial $p_0$ (based on the FRI queries that the verifier generates).
+As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial $p_0$ (based on the FRI queries that the verifier generates in the [query phase](#query-phase) of the protocol).
 
-We abstract this here as an oracle that magically provides evaluations. It is the responsibility of the user of this protocol to ensure that the evaluations are correct. See the [Starknet STARK verifier specification](stark.html) for a concrete usage example.
+We abstract this here as an oracle that magically provides evaluations. It is the responsibility of the user of this protocol to ensure that the evaluations are correct (which most likely include verifying a number of decommitments). See the [Starknet STARK verifier specification](stark.html) for a concrete usage example.
+
+<aside class="example">For example, the STARK protocol computes evaluations of $p_0(v)$ (but not $p_0(v)$) using decommitments of trace column polynomials and composition column polynomials at the same path corresponding to the evaluation point $v$.</aside>
 
 ## Constants
 
@@ -482,17 +482,9 @@ The generation of each FRI query goes through the same process:
 
 Finally, when all FRI queries have been generated, they are sorted in ascending order.
 
-<aside class="note">This gives you a value that is related to the path to query in a <a href="#commitments">Merkle tree commitment</a>, and can be used to derive the actual evaluation point at which the polynomial is evaluated. Commitments should reveal not just one evaluation, but correlated evaluations in order to help the protocol move forward. For example, if a query is generated for the evaluation point $v$, then the commitment will reveal the evaluation of a polynomial at $v$ but also at $-v$ and potentially more points (depending on the number of layers skipped).</aside>
+<aside class="note">This gives you a value that is related to the path to query in a Merkle tree commitment, and can be used to derive the actual evaluation point at which the polynomial is evaluated. Commitments should reveal not just one evaluation, but correlated evaluations in order to help the protocol move forward. For example, if a query is generated for the evaluation point $v$, then the commitment will reveal the evaluation of a polynomial at $v$ but also at $-v$ and potentially more points (depending on the number of layers skipped).</aside>
 
-TODO: include how we provide the `y_value` and how we verify the first layer's evaluations still
-
-TODO: also talk about how the first query is fixed to move away from the coset
-
-#### Converting A Query To An Evaluation Point
-
-A query $q$ (a value within $[0, 2^{n_e}]$ for $n_e$ the log-size of the evaluation domain) can be converted to an evaluation point in the following way.
-
-First, compute the bit-reversed exponent:
+A query $q$ (a value within $[0, 2^{n_e}]$ for $n_e$ the log-size of the evaluation domain) can be converted to an evaluation point in the following way. First, compute the bit-reversed exponent:
 
 $$
 q' = \text{bit_reverse}(q \cdot 2^{64 - n_e})
@@ -506,51 +498,44 @@ $$
 
 TODO: explain why not just do $3 \cdot \omega_e{q}$
 
+Finally, the expected evaluation can be computed using the API defined in the [Verifying the first FRI layer](#verifying-the-first-fri-layer) section.
+
 #### Verify A Layer's Query
 
-TODO: refer to the section on the first layer evaluation stuff (external dependency)
+Besides the last layer, each layer verification of a query happens by:
 
-Besides the last layer, each layer verification of a query happens by simply decommitting a layer's queries.
+1. verifying the query on the current layer. This is done by effectively decommitting a layer's query following the [Merkle Tree Polynomial Commitment](merkle.html) specification.
+2. computing the next query as explained below.
 
-```rust
-table_decommit(commitment, paths, leaves_values, witness, settings);
-```
+We illustrate this in the following diagram, pretending that associated evaluations are not grouped under the same path in the Merkle tree commitment (although in practice they are).
+
+![a FRI query](/img/starknet/query.png)
+
+<aside class="note">This means that when used in the STARK protocol, for example, the first layer represents the same polynomial as the aggregation of a number of FRI checks, and associated evaluations (e.g. $-v$ given $v$) are witnessed. This is akin to a reduction in the FRI protocol (except that the linear combination includes many more terms and scalars).</aside>
 
 To verify the last layer's query, as the last layer polynomial is received in clear, simply evaluate it at the queried point `1/fri_layer_query.x_inv_value` and check that it matches the expected evaluation `fri_layer_query.y_value`.
 
-TODO: As explained in the section on Merkle Tree Decommitment, witness leaves values have to be given as well.
-
-TODO: link to section on merkle tree
-
-#### Computing the next layer's queries
-
-Each reduction will produce queries to the next layer, which will expect specific evaluations.
+Each query verification (except on the last layer) will produce queries for the next layer, which will expect specific evaluations.
 
 The next queries are derived as:
 
-* index: index / coset_size
-* point: point^coset_size
-* value: FRI formula below
+* index: `index / coset_size`
+* point: `point^coset_size`
+* value: see FRI formula below
 
 where coset_size is 2, 4, 8, or 16 depending on the layer (but always 2 for the first layer).
-
-TODO: explain the relation between coset_size and the step size. coset_size = 2^step_size
-
-The next evaluations expected at the queried layers are derived as:
 
 Queries between layers verify that the next layer $p_{i+j}$ is computed correctly based on the current layer $p_{i}$.
 The next layer is either the direct next layer $p_{i+1}$ or a layer further away if the configuration allows layers to be skipped.
 Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the `MAX_FRI_STEP` constant).
 
-TODO: why MAX_FRI_STEP=3?
-
-no skipping:
+The formula with no skipping is:
 
 * given a layer evaluations at $\pm v$, a query without skipping layers work this way:
 * we can compute the next layer's *expected* evaluation at $v^2$ by computing $p_{i+1}(v^2) = \frac{p_{i}(v)+p_{i}(-v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-v)}{2v}$
 * we can then ask the prover to open the next layer's polynomial at that point and verify that it matches
 
-1 skipping with $\omega_4$ the generator of the 4-th roots of unity (such that $\omega_4^2 = -1$):
+The formula with 1 layer skipped with $\omega_4$ the generator of the 4-th roots of unity (such that $\omega_4^2 = -1$):
 
 * $p_{i+1}(v^2) = \frac{p_{i}(v)+p_{i}(-v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-v)}{2v}$
 * $p_{i+1}(-v^2) = \frac{p_{i}(\omega_4 v)+p_{i}(-\omega_4 v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-\omega_4 v)}{2 \cdot \omega_4 \cdot v}$
@@ -558,7 +543,7 @@ no skipping:
 
 As you can see, this requires 4 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$.
 
-2 skippings with $\omega_8$ the generator of the 8-th roots of unity (such that $\omega_8^2 = \omega_4$ and $\omega_8^4 = -1$):
+The formula with 2 layers skipped with $\omega_8$ the generator of the 8-th roots of unity (such that $\omega_8^2 = \omega_4$ and $\omega_8^4 = -1$):
 
 * $p_{i+1}(v^2) = \frac{p_{i}(v)+p_{i}(-v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-v)}{2v}$
 * $p_{i+1}(-v^2) = \frac{p_{i}(\omega_4 v)+p_{i}(-\omega_4 v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-\omega_4 v)}{2 \cdot \omega_4 \cdot v}$
@@ -570,7 +555,7 @@ As you can see, this requires 4 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$,
 
 As you can see, this requires 8 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$, $\omega_8 v$, $- \omega_8 v$, $\omega_8^3 v$, $- \omega_8^3 v$.
 
-3 skippings with $\omega_{16}$ the generator of the 16-th roots of unity (such that $\omega_{16}^2 = \omega_{8}$, $\omega_{16}^4 = \omega_4$, and $\omega_{16}^8 = -1$):
+The formula with 3 layers skipped with $\omega_{16}$ the generator of the 16-th roots of unity (such that $\omega_{16}^2 = \omega_{8}$, $\omega_{16}^4 = \omega_4$, and $\omega_{16}^8 = -1$):
 
 * $p_{i+1}(v^2) = \frac{p_{i}(v)+p_{i}(-v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-v)}{2v}$
 * $p_{i+1}(-v^2) = \frac{p_{i}(\omega_4 v)+p_{i}(-\omega_4 v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-\omega_4 v)}{2 \cdot \omega_4 \cdot v}$
@@ -588,9 +573,7 @@ As you can see, this requires 8 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$,
 * $p_{i+3}(-v^8) = \frac{p_{i+2}(\omega_4 v^4)+p_{i+2}(-\omega_4 v^4)}{2} + \zeta_i^4 \cdot \frac{p_{i+2}(\omega_4 v^4) - p_{i+2}(-\omega_4 v^4)}{2 \cdot \omega_4 v^4}$
 * $p_{i+4}(v^16) = \frac{p_{i+3}(v^8)+p_{i+3}(-v^8)}{2} + \zeta_i^8 \cdot \frac{p_{i+3}(v^8) - p_{i+3}(-v^8)}{2 \cdot v^8}$
 
-as you can see, this requires 16 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$, $\omega_8 v$, $- \omega_8 v$, $\omega_8^3 v$, $- \omega_8^3 v$, $\omega_16 v$, $-\omega_16 v$, $\omega_16^3 v$, $-\omega_16^3 v$, $\omega_16^5 v$, $-\omega_16^5 v$, $\omega_7 v$, $-\omega_7 v$.
-
-TODO: reconcile with section on the differences with vanilla FRI
+As you can see, this requires 16 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$, $\omega_8 v$, $- \omega_8 v$, $\omega_8^3 v$, $- \omega_8^3 v$, $\omega_16 v$, $-\omega_16 v$, $\omega_16^3 v$, $-\omega_16^3 v$, $\omega_16^5 v$, $-\omega_16^5 v$, $\omega_7 v$, $-\omega_7 v$.
 
 TODO: reconcile with constants used for elements and inverses chosen in subgroups of order $2^i$ (the $\omega$s)
 
@@ -654,10 +637,10 @@ We give more detail to each function below.
 
 **`fri_verify_initial(queries, fri_commitment, decommitment)`**. Takes the FRI queries, the FRI commitments (each layer's committed polynomial), as well as the evaluation points and their associated evaluations of the first layer (in `decommitment`).
 
-* Enforce that for each query there is a matching derived evaluation point and evaluation at that point on the first layer contained in the given `decommitment`.
-* Enforce that last layer has the right number of coefficients as expected by the FRI configuration (see the [FRI Configuration](#fri-configuration) section).
-* Compute the first layer of queries as `FriLayerQuery { index, y_value, x_inv_value: 3 / x_value }` for each `x_value` and `y_value` given in the `decommitment`
-* Initialize and return the two state objects
+1. Enforce that for each query there is a matching derived evaluation point and evaluation at that point on the first layer contained in the given `decommitment`.
+1. Enforce that last layer has the right number of coefficients as expected by the FRI configuration (see the [FRI Configuration](#fri-configuration) section).
+1. Compute the first layer of queries as `FriLayerQuery { index, y_value, x_inv_value: 3 / x_value }` for each `x_value` and `y_value` given in the `decommitment`. (This is a correction that will help achieve the differences in subsequent layers outlined in [Notable Differences With Vanilla FRI](#notable-differences-with-vanilla-fri)).
+1. Initialize and return the two state objects
 
 ```rust
 (
@@ -668,23 +651,22 @@ We give more detail to each function below.
         step_sizes: config.fri_step_sizes[1:], // the number of reduction at each steps
         last_layer_coefficients_hash: hash_array(last_layer_coefficients),
     },
-    FriVerificationStateVariable { iter: 0, queries: fri_queries }
+    FriVerificationStateVariable { iter: 0, queries: fri_queries } // the initial queries
 )
 ```
 
 **`fri_verify_step(stateConstant, stateVariable, witness, settings)`**.
 
-* enforce that `stateVariable.iter <= stateConstant.n_layers`
-* compute the next layer queries (TODO: link to section on that)
-* verify the queries
-* increment the `iter` counter
-* return the next queries and the counter
+1. Enforce that `stateVariable.iter <= stateConstant.n_layers`.
+2. Verify the queried layer and compute the next query following the [Verify A Layer's Query](#verify-a-layer-s-query) section.
+5. Increment the `iter` counter.
+6. Return the next queries and the counter.
 
 **`fri_verify_final(stateConstant, stateVariable, last_layer_coefficients)`**.
 
-* enforce that the counter has reached the last layer from the constants (`iter == n_layers`)
-* enforce that the last_layer_coefficient matches the hash contained in the state (TODO: only relevant if we created that hash in the first function)
-* manually evaluate the last layer's polynomial at every query and check that it matches the expected evaluations.
+1. Enforce that the counter has reached the last layer from the constants (`iter == n_layers`).
+1. Enforce that the `last_layer_coefficient` matches the hash contained in the state (TODO: only relevant if we created that hash in the first function).
+1. Manually evaluate the last layer's polynomial at every query and check that it matches the expected evaluations.
 
 ```rust
 fn fri_verify_final(
@@ -707,15 +689,18 @@ fn fri_verify_final(
 }
 ```
 
-
 ## Test Vectors
 
-TKTK
+Refer to the reference implementation for test vectors.
 
 ## Security Considerations
 
-* number of queries?
-* size of domain?
-* proof of work stuff?
+The current way to compute the bit security is to compute the following formula:
 
-security bits: `n_queries * log_n_cosets + proof_of_work_bits`
+```
+n_queries * log_n_cosets + proof_of_work_bits
+```
+
+Where:
+
+* `n_queries` is the number of queries generates 

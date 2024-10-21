@@ -117,7 +117,7 @@ TODO: explain what parts does the term "DEEP" refer to in this protocol.
 
 The verifier now has to:
 
-1. Perform a FRI check on $h_0(x) + x h_1(x)$ (which will verify the original prover claim that the trace polynomials satistify the constraints).
+1. Perform a FRI check on $h_0(x) + x h_1(x)$ (which will verify the original prover claim that the trace polynomials satisfy the constraints).
 2. Verify all the evaluations that were sent, the prover and the verifier can use FRI-PCS for that, as described in [the FRI-PCS section of the Starknet FRI Verifier specification](fri.html#fri-pcs).
 
 TODO: the second point also should have the effect of proving that the commitments to the trace column polynomials are correct (as they will also act as FRI checks)
@@ -132,7 +132,7 @@ In this section we list all of the dependencies and interfaces this standard rel
 
 ### AIR Arithmetization Dependency
 
-While this specification was written with Cairo in mind, it should be instantiatiable with any AIR arithmetization that can be verified using the STARK protocol.
+While this specification was written with Cairo in mind, it should be usable with any AIR arithmetization that can be verified using the STARK protocol.
 
 A protocol that wants to use this specification should provide the following:
 
