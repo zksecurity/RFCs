@@ -33,7 +33,7 @@ Before we delve into the details, let's look at the protocol from a high-level p
 
 1. Construction of an interactive arithmetization. In this phase the prover commits to different parts of the execution trace it wants to prove, using random challenges in-between.
 2. Aggregation of constraints into a composition polynomial. In this phase the prover commits to a composition polynomial that, if checked by FRI, proves that the execution trace satisfies the constraints. It also produces evaluations of commitments at a random point so that the verifier can check that the composition polynomial is well-formed.
-3. Aggregation of FRI proofs and FRI protocol. The composition polynomial FRI check as well as evaluation proofs (using FRI-PCS) of all the sent evaluations are aggregtated into a single FRI check. The FRI protocol is then run to verify the aggregated FRI proof. See the [Starknet FRI Verifier specification](fri.html) for more details.
+3. Aggregation of FRI proofs and FRI protocol. The composition polynomial FRI check as well as evaluation proofs (using FRI-PCS) of all the sent evaluations are aggregated into a single FRI check. The FRI protocol is then run to verify the aggregated FRI proof. See the [Starknet FRI Verifier specification](fri.html) for more details.
 
 We illustrate the flow in the following diagram:
 
@@ -52,7 +52,7 @@ AIR is essentially two things:
 
 The indexing of the table is chosen as the elements of the smallest subgroup of power $2$ that can index the table.
 
-Furthermore, the columns of a table can be grouped, which allows the prover to fill the table group by group, using challenges from the verifier in-between. This is useful in order to perform an interactive arithmetization where parts of the encoded circuit needs verifier randomness to be computed.
+Furthermore, the columns of a table can be grouped, which allows the prover to fill the table group by group, using challenges from the verifier in-between. This is useful in order to perform an interactive arithmetization where parts of the encoded circuit need verifier randomness to be computed.
 
 We give the example of two "original" columns and one "interaction" column, indexed using the multiplicative subgroup of the 16-th roots of unity:
 
@@ -68,7 +68,7 @@ where the domain polynomial $D_0$ can be efficiently computed as $\frac{x^{16} -
 
 The first phase of the Starknet STARK protocol is to iteratively construct the trace tables (what we previously called interactive arithmetization). The prover sends commitments to parts of the table, and receives verifier challenges in between.
 
-<aside class="note">In the instantiation of the Starknet STARK protocol, there are only two execution trace tables: the original trace table and the interaction trace table, the verifier challenges received in between is called the interaction challenges. Different Cairo layouts will give place to different trace tables and interaction challenges.</aside>
+<aside class="note">In the instantiation of the Starknet STARK protocol, there are only two execution trace tables: the original trace table and the interaction trace table, the verifier challenges received in between are called the interaction challenges. Different Cairo layouts will give place to different trace tables and interaction challenges.</aside>
 
 * TODO: we should make this part agnostic to Cairo though.
 
@@ -82,7 +82,7 @@ By definition, this can be reduced to checking that you can write each $C_i$ as 
 
 While protocols based on polynomial commitments like KZG would commit to the quotient polynomial and then prove the relation $C_i(x) = D_i(x) \cdot q(x)$ at a random point (using Schwartz-Zippel), the Starknet STARK protocol uses a different approach: it uses a FRI check to prove that the commitment to the evaluations of $q(x) = \frac{C_i(x)}{D_i(x)}$ correctly represents a polynomial of low degree.
 
-As such, the role of the verifier is to verify that all the quotient polynomials associated to all the constraints exist and are of low-degree.
+As such, the role of the verifier is to verify that all the quotient polynomials associated with all the constraints exist and are of low-degree.
 
 TODO: define low-degree better
 
@@ -90,7 +90,7 @@ As we want to avoid having to go through many FRI checks, the verifier sends a c
 
 This composition polynomial is quite big, so the prover provides a commitment to chunks or columns of the composition polynomials, interpreting $h$ as $h(x) = \sum_i h_i(x) x^i$.
 
-<aside class="note">In the instantation of this specification with Cairo, there are only two composition column polynomials: $h(x) = h_0(x) + h_1(x) \cdot x$.</aside>
+<aside class="note">In the instantiation of this specification with Cairo, there are only two composition column polynomials: $h(x) = h_0(x) + h_1(x) \cdot x$.</aside>
 
 Finally, to allow the verifier to check that $h$ has correctly been committed, Schwartz-Zippel is used with a random verifier challenge called the "oods point". Specifically, the verifier evaluates the following and check that they match:
 
@@ -261,7 +261,7 @@ The goal of the STARK commit is to process all of the commitments produced by th
       4. Absorb all evaluations with the channel.
       5. Verify that the composition polynomial is correct by checking that its evaluation at the oods point is correct using some of the evaluations $\sum_j \frac{C_j(\text{oods_point})}{D_j(\text{odds_point})} = \sum_i h_i(\text{oods_point}) \times \text{oods_point}^i$.
          1. The right-hand side can be computed directly using the evaluations sent by the prover
-         2. The left-hand side has to be computed using the `eval_composition_polynomial` function defined in the [AIR Arithemtization Dependency section](#air-arithmetization-dependency).
+         2. The left-hand side has to be computed using the `eval_composition_polynomial` function defined in the [AIR Arithmetization Dependency section](#air-arithmetization-dependency).
 3. **Produce a challenge to aggregate all FRI checks and run the FRI protocol**:
       1. Sample the oods_alpha challenge with the channel.
       2. Call `fri_commit`.
@@ -270,7 +270,7 @@ The goal of the STARK commit is to process all of the commitments produced by th
 
 The goal of STARK verify is to verify evaluation queries (by checking that evaluations exist in the committed polynomials) and the FRI queries (by running the FRI verification).
 
-To do this, we simply call the `fri_verify_initial` function contained in the FRI specification and give it the values computed by `eval_oods_polynomial` (as defined in the [AIR Arithmetization Dependency section](#air-arithmetization-dependency)) as first evaluations associated to the queried points. It should return two FRI objects.
+To do this, we simply call the `fri_verify_initial` function contained in the FRI specification and give it the values computed by `eval_oods_polynomial` (as defined in the [AIR Arithmetization Dependency section](#air-arithmetization-dependency)) as first evaluations associated with the queried points. It should return two FRI objects.
 
 <aside class="note">These evaluations will only provide evaluations of the first layer polynomial $p_0$ at query points $v_i$. The prover will witness evaluations at $-v_i$ by themselves and prove that they are present in the first FRI commitment (of the polynomial $p_0$.</aside>
 
