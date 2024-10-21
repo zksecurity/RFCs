@@ -367,7 +367,7 @@ assert g1_square + zeta1 * h1_square == p2_v # and then check correctness
 <section>
 <h3>FRI configuration</h3>
 <p>A FRI configuration contains the following fields:</p>
-<p><strong><code>log_input_size</code></strong>. The size of the input layer to FRI (the number of evaluations committed). (TODO: double check)</p>
+<p><strong><code>log_input_size</code></strong>. The size of the input layer to FRI, specifically the log number of evaluations committed (this should match the log of the evaluation domain size).</p>
 <p><strong><code>n_layers</code></strong>. The number of layers or folding that will occur as part of the FRI proof. This value must be within the range <code>[2, MAX_FRI_LAYERS]</code> (see constants).</p>
 <p><strong><code>inner_layers</code></strong>. An array of <code>TableCommitmentConfig</code> where each configuration represents what is expected of each commitment sent as part of the FRI proof. Refer to the <a href="merkle.html#table-commitments">Table Commitments section of the Starknet Merkle Tree Polynomial Commitments specification</a>.</p>
 <p><strong><code>fri_step_sizes</code></strong>. The number of layers to skip for each folding/reduction of the protocol. The first step must always be zero, as no layer is skipped during the first reduction. Each step should be within the range <code>[1, MAX_FRI_STEP]</code>. For each step, the corresponding layer <code>inner_layers[i-1]</code> should have enough columns to support the reduction: <code>n_columns = 2^fri_step</code>.</p>
