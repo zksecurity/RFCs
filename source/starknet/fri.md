@@ -278,7 +278,7 @@ $$
 p_{i+1}(v^2) = p_{i}(v) + p_{i}(-v) + \zeta_{i} \cdot \frac{p_{i}(v) - p_{i}(-v)}{v}
 $$
 
-The second difference is that while the evaluations of the first layer $p_0$ happen in a coset, further evaluations happen in the original (blown up) evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the prover defines the first reduced polynomial as:
+The second difference is that while the evaluations of the first layer $p_0$ happen in a coset called evaluation domain, further evaluations happen in the original (blown up) trace domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the prover defines the first reduced polynomial as:
 
 $$
 p_{1}(x) = 2(g_{0}(9x^2) + \zeta_0 \cdot 3 \cdot h_{0}(9x^2))
@@ -294,7 +294,7 @@ $$
 
 <aside class="note">we assume no skipped layers, which is always the case in this specification for the first layer's reduction.</aside>
 
-After that, everything happens as normal (except that now the prover uses the original evaluation domain instead of a coset to evaluate and commit to the layer polynomials).
+After that, everything happens as normal (except that now the prover uses the original blown-up trace domain instead of a coset to evaluate and commit to the layer polynomials).
 
 Note that these changes can easily be generalized to work when layers are skipped.
 
@@ -391,9 +391,23 @@ TODO: move these validation steps in the description of the fields above
     * TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)
     * where `log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound`
 
-## Domain
+## Domains and Commitments
 
-TODO: we expect the first layer to be on coset and then on the original domain
+There are three types of domains:
+
+The **trace domain**, this is the domain chosen to evaluate the execution trace polynomials. It is typically the smallest subgroup of order $2^{n_t}$ for some $n_t$, such that it can include all the constraints of an AIR constraint system. A generator for the trace domain can be found as $\omega_t =3^{(p-1)/n_t}$ (since $\omega_{t}^{n_t} = 1$)
+
+The **blown-up trace domain**, which is chosen as a subgroup of a power of two $2^{n_e}$ that encompasses the trace domain (i.e. $e \geq t$). The "blown up factor" typically dictates how much larger the evaluation domain is as a multiple. A generator for the blown-up trace domain can be found as $\omega_e = 3^{(p-1)/n_e}$.
+
+The **evaluation domain**, This is a coset of the blown-up domain, computed using the generator of the main group: $\{ 3 \cdot \omega_e^i | i \in [[0, n_e]] \}$.
+
+Commitments are created using table commitments as described in the [Table Commitments section of the Merkle Tree Polynomial Commitments specification](merkle.html#table-commitments).
+
+For the first layer polynomial, the evaluations being committed are in a coset called the evaluation domain.
+
+For all other polynomials, commitments are made up of evaluations in the blown-up trace domain (following the correction outlined in the [Notable Differences With Vanilla FRI](#notable-differences-with-vanilla-fri) section).
+
+<aside class="note">The reason for choosing a coset is two-folds. First, in ZK protocols you want to avoid decommitting actual witness values by querying points in the trace domain. Choosing another domain helps but is not sufficient. As this specification does not provide a ZK protocol. The second reason is the one that is interesting to us: it is an optimization reason. As the prover needs to compute the composition polynomial, they can do this in the monomial basis (using vectors of coefficient of the polynomials) but it is expensive. For this reason, they usually operate on polynomials using the lagrange basis (using vectors of evaluations of the polynomials). As such, calculating the composition polynomial leads to divisions by zero if the trace domain is used. The prover could in theory use any other domains, but they decide to use the same domain that they use to commit (the evaluation domain) to avoid having to interpolate and re-evaluate in the domain to commit (which would involve two FFTs).</aside>
 
 ## Protocol
 
@@ -468,7 +482,7 @@ The generation of each FRI query goes through the same process:
 
 Finally, when all FRI queries have been generated, they are sorted in ascending order.
 
-<aside class="note">This gives you a value that is related to the path to query in a [Merkle tree commitment](#commitments), and can be used to derive the actual evaluation point at which the polynomial is evaluated. Commitments should reveal not just one evaluation, but correlated evaluations in order to help the protocol move forward. For example, if a query is generated for the evaluation point $v$, then the commitment will reveal the evaluation of a polynomial at $v$ but also at $-v$ and potentially more points (depending on the number of layers skipped).</aside>
+<aside class="note">This gives you a value that is related to the path to query in a <a href="#commitments">Merkle tree commitment</a>, and can be used to derive the actual evaluation point at which the polynomial is evaluated. Commitments should reveal not just one evaluation, but correlated evaluations in order to help the protocol move forward. For example, if a query is generated for the evaluation point $v$, then the commitment will reveal the evaluation of a polynomial at $v$ but also at $-v$ and potentially more points (depending on the number of layers skipped).</aside>
 
 TODO: include how we provide the `y_value` and how we verify the first layer's evaluations still
 
@@ -476,7 +490,7 @@ TODO: also talk about how the first query is fixed to move away from the coset
 
 #### Converting A Query To An Evaluation Point
 
-A query $q$ (a value within $[0, 2^{n_e}]$ for $n_e$ the log-size of the blown-up evaluation domain) can be converted to an evaluation point in the following way.
+A query $q$ (a value within $[0, 2^{n_e}]$ for $n_e$ the log-size of the evaluation domain) can be converted to an evaluation point in the following way.
 
 First, compute the bit-reversed exponent:
 
@@ -484,7 +498,7 @@ $$
 q' = \text{bit_reverse}(q \cdot 2^{64 - n_e})
 $$
 
-Then compute the element of the blown-up evaluation domain in the coset (with $\omega_e$ the generator of the evaluation domain):
+Then compute the element of the evaluation domain in the coset (with $\omega_e$ the generator of the evaluation domain):
 
 $$
 3 \cdot \omega_e^{q'}
