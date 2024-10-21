@@ -165,7 +165,7 @@ With our previous example constraint, the prover would have to provide the evalu
 <h3>Aggregation and FRI Proof</h3>
 <p>The verifier now has to:</p>
 <ol>
-<li>Perform a FRI check on <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><msub><mi>h</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> (which will verify the original prover claim that the trace polynomials satistify the constraints).</li>
+<li>Perform a FRI check on <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><msub><mi>h</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> (which will verify the original prover claim that the trace polynomials satisfy the constraints).</li>
 <li>Verify all the evaluations that were sent, the prover and the verifier can use FRI-PCS for that, as described in <a href="fri.html#fri-pcs">the FRI-PCS section of the Starknet FRI Verifier specification</a>.</li>
 </ol>
 <p>TODO: the second point also should have the effect of proving that the commitments to the trace column polynomials are correct (as they will also act as FRI checks)</p>
@@ -178,7 +178,7 @@ With our previous example constraint, the prover would have to provide the evalu
 <p>In this section we list all of the dependencies and interfaces this standard relies on.</p>
 <section>
 <h3>AIR Arithmetization Dependency</h3>
-<p>While this specification was written with Cairo in mind, it should be instantiatiable with any AIR arithmetization that can be verified using the STARK protocol.</p>
+<p>While this specification was written with Cairo in mind, it should be usable with any AIR arithmetization that can be verified using the STARK protocol.</p>
 <p>A protocol that wants to use this specification should provide the following:</p>
 <p><strong>interactive arithmetization</strong>. A description of the interactive arithmetization step, which should include in what order the different tables are committed and what verifier challenges are sent in-between.</p>
 <p><strong><code>eval_composition_polynomial</code></strong>. A function that takes all of the commitments, all of the evaluations, and a number of Merkle tree witnesses sent by the prover and produces an evaluation of the composition polynomial at the oods point. (This evaluation will depend heavily on the number of trace columns and the constraints of the given AIR arithmetization.) The function is expected to verify any decommitment (via the Merkle tree witnesses) that it uses.</p>
