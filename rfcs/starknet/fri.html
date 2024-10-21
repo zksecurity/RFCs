@@ -72,7 +72,7 @@
     <section id="abstract">
         <p><p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximity (FRI)</strong> is a cryptographic protocol that allows a prover to prove to a verifier (in an interactive, or non-interactive fashion) that a hash-based commitment (e.g. a Merkle tree of evaluations) of a vector of values represent the evaluations of a polynomial of some known degree. (That is, the vector committed is not just a bunch of uncorrelated values.) The algorithm is often referred to as a "low degree" test, as the degree of the underlying polynomial is expected to be much lower than the degree of the field the polynomial is defined over. Furthermore, the algorithm can also be used to prove the evaluation of a committed polynomial, an application that is often called FRI-PCS. We discuss both algorithms in this document, as well as how to batch multiple instances of the two algorithms.</p>
 <p>For more information about the original construction, see <a href="https://eccc.weizmann.ac.il/report/2017/134/">Fast Reed-Solomon Interactive Oracle Proofs of Proximity</a>. This document is about the specific instantiation of FRI and FRI-PCS as used by the StarkNet protocol.</p>
-<aside class="note">Specifically, it matches the [integrity verifier](https://github.com/HerodotusDev/integrity/tree/main/src) which is a Cairo implementation of a Cairo verifier. There might be important differences with the Cairo verifier implemented in C++ or Solidity.</aside></p>
+<aside class="note">Specifically, it matches the <a href="https://github.com/HerodotusDev/integrity">integrity verifier</a>, which is a <a href="https://book.cairo-lang.org/">Cairo 1</a> implementation of a Cairo verifier. There might be important differences with the Cairo verifier implemented in C++ or Solidity.</aside></p>
     </section>
     <section id="sotd">
         <p>draft</p>
@@ -260,22 +260,6 @@ assert p2(v^4) == (p1_v_square + p1_neg_v_square)/2 + zeta1 * (p1_v_square - p1_
 assert g1_square + zeta1 * h1_square == p2_v # and then check correctness
 </code></pre>
 </section>
-<section>
-<h4>Commitments</h4>
-<p>Commitments used in this specification are Merkle tree commitments of evaluations of a polynomial. In other words, the leaves of the Merkle tree are evaluations of a polynomial at distinct points.</p>
-<p>We use a coset to evaluate the polynomial at the different points. This is for two reasons:</p>
-<ol>
-<li>In FRI we can increase the size of the evaluated domain in the commitments, in order to decrease the number of queries needed to ensure high bit-security. (TODO: how do cosets help us here?)</li>
-<li>As used in Starknet STARK (TODO: link to the STARK verifier specification), the layer 0 polynomial has to be computed as a rational polynomial that would lead to division by zero issues if evaluated in the original evaluation domain. As such we take a coset to avoid this issue.</li>
-</ol>
-<p>As with what we specify in the rest of this document, we produce a coset of the same size as the evaluation domain (the domain which is used to produce the layer 0 polynomial in the Starknet STARK protocol).</p>
-<pre><code class="language-py"># if we evaluate the polynomial on a set of size 8 (so the blowup factor is 1)
-g = find_gen2(log(8,2))
-
-coset = [3 * g^i for i in range(8)] 
-poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statement
-</code></pre>
-</section>
 </section>
 <section>
 <h3>FRI-PCS</h3>
@@ -305,16 +289,16 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>g</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><mi>x</mi><msub><mi>h</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math>
 
 <p>The first difference in this specification is that, assuming no skipped layers, the folded polynomial is multiplied by 2:</p>
-<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mn>2</mn><mo stretchy="false">&#x00028;</mo><msub><mi>g</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mrow><mi>i</mi></mrow></msub><mi>&#x000B7;</mi><msup><mn>3</mn><mrow><mo>&#x02212;</mo><mn>1</mn></mrow></msup><mi>&#x000B7;</mi><msub><mi>h</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo stretchy="false">&#x00029;</mo></mrow></math>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mn>2</mn><mo stretchy="false">&#x00028;</mo><msub><mi>g</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mrow><mi>i</mi></mrow></msub><mi>&#x000B7;</mi><msub><mi>h</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo stretchy="false">&#x00029;</mo></mrow></math>
 
 <p>This means that the verifier has to modify their queries slightly by not dividing by 2:</p>
-<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mrow><mi>i</mi></mrow></msub><mi>g</mi><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mi>v</mi></mrow></mfrac></mrow></math>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mrow><mi>i</mi></mrow></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mrow><mi>i</mi></mrow></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><mi>v</mi></mrow></mfrac></mrow></math>
 
 <p>The second difference is that while the evaluations of the first layer <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>0</mn></msub></mrow></math> happen in a coset, further evaluations happen in the original (blown up) evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the prover defines the first reduced polynomial as:</p>
-<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mn>2</mn><mo stretchy="false">&#x00028;</mo><msub><mi>g</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mn>9</mn><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mfrac><mrow><msub><mi>h</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mn>9</mn><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow><mrow><mi>x</mi></mrow></mfrac><mo stretchy="false">&#x00029;</mo></mrow></math>
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mn>2</mn><mo stretchy="false">&#x00028;</mo><msub><mi>g</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mn>9</mn><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mi>&#x000B7;</mi><mn>3</mn><mi>&#x000B7;</mi><msub><mi>h</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">&#x00028;</mo><mn>9</mn><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo><mo stretchy="false">&#x00029;</mo></mrow></math>
 
-<p>Notice that the prover has also divided by <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>x</mi></mrow></math> instead of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>3</mn><mi>x</mi></mrow></math>. This is a minor change that helps with how the verifier code is structured.</p>
-<p>This means that the verifier computes the queries on <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub><mrow><mi>x</mi></mrow></mrow></math> at points on the original subgroup. So the queries of the first layer are produced using <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>v</mi><mi>&#x02032;</mi></msup><mo>&#x0003D;</mo><mi>v</mi><mo>&#x0002F;</mo><mn>3</mn></mrow></math> (assuming no skipped layers).</p>
+<p>Notice that the prover has also multiplied the right term with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>3</mn></mrow></math>. This is a minor change that helps with how the verifier code is structured.</p>
+<p>This means that the verifier computes the queries on <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math> at points on the original subgroup. So the queries of the first layer are produced using <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>v</mi><mi>&#x02032;</mi></msup><mo>&#x0003D;</mo><mi>v</mi><mo>&#x0002F;</mo><mn>3</mn></mrow></math> (assuming no skipped layers).</p>
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="false">&#x00028;</mo><mo stretchy="false">&#x00028;</mo><msup><mi>v</mi><mrow><mi>&#x02032;</mi><mn>2</mn></mrow></msup><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x003B6;</mi><mn>0</mn></msub><mi>&#x000B7;</mi><mfrac><mrow><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02212;</mo><msub><mi>p</mi><mn>0</mn></msub><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>v</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><msup><mi>v</mi><mi>&#x02032;</mi></msup></mrow></mfrac></mrow></math>
 
 <aside class="note">we assume no skipped layers, which is always the case in this specification for the first layer's reduction.</aside>
@@ -329,10 +313,9 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 <h3>Hash Functions</h3>
 <p>We rely on two type of hash functions:</p>
 <ul>
-<li>A circuit-friendly hash. Specifically, <strong>Poseidon</strong>.</li>
+<li>A verifier-friendly hash. Specifically, <strong>Poseidon</strong>. (TODO: explain why, also should we call it circuit-friendly?)</li>
 <li>A standard hash function. Specifically, <strong>Keccak</strong>.</li>
 </ul>
-<p>TODO: why the alternate use of hash functions?</p>
 </section>
 <section>
 <h3>Channel</h3>
@@ -354,9 +337,10 @@ poly8_evals = [p0(x) for x in coset] # &lt;-- we would merklelify this as statem
 </section>
 <section>
 <h3>FRI constants</h3>
-<p><strong><code>MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15</code></strong>. TKTK</p>
-<p><strong><code>MAX_FRI_LAYERS = 15</code></strong>. The maximum number of layers in the FRI protocol. This means that the protocol can test that committed polynomials exist and are of degree at most <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>15</mn></mrow></msup></mrow></math>. (TODO: double check)</p>
+<p><strong><code>MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15</code></strong>. The maximum degree of the last layer polynomial (in log2).</p>
+<p><strong><code>MAX_FRI_LAYERS = 15</code></strong>. The maximum number of layers in the FRI protocol.</p>
 <p><strong><code>MAX_FRI_STEP = 4</code></strong>. The maximum number of layers that can be skipped in FRI (see the overview for more details).</p>
+<p>This means that the standard can be implemented to test that committed polynomials exist and are of degree at most <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><mn>15</mn><mo>&#x0002B;</mo><mn>15</mn></mrow></msup><mo>&#x0003D;</mo><msup><mn>2</mn><mrow><mn>30</mn></mrow></msup></mrow></math>.</p>
 </section>
 <section>
 <h3>TODO: Step generators</h3>
@@ -410,26 +394,11 @@ const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99
 </section>
 </section>
 <section>
-<h2>Protocol</h2>
-<p>The FRI protocol is split into two phases:</p>
-<ol>
-<li>Commit phase</li>
-<li>Query phase</li>
-</ol>
+<h2>Domain</h2>
+<p>TODO: we expect the first layer to be on coset and then on the original domain</p>
+</section>
 <section>
-<h3>Commit Phase</h3>
-<p>This should basically just absorb the commitments of every layer sent by the prover (potentially skipping layers)</p>
-<pre><code class="language-rust">#[derive(Drop, Copy, PartialEq, Serde)]
-struct TableCommitmentConfig {
-    n_columns: felt252, // TODO: gets divided by 2 at every step in FRI?
-    vector: VectorCommitmentConfig,
-}
-struct VectorCommitmentConfig {
-    height: felt252, // TODO: ?
-    n_verifier_friendly_commitment_layers: felt252, // TODO: ?
-}
-</code></pre>
-<p>The layer 0 polynomial is not part of the protocol, we assume that it comes from somewhere and that we can query evaluations of it in a coset <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>3</mn><mi>&#x000B7;</mi><msub><mi>&#x003C9;</mi><mi>e</mi></msub></mrow></math> where <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mi>e</mi></msub></mrow></math> is the generator of the evaluation domain. In the <a href="stark.html">Starknet STARK protocol</a> it represents a blown up evaluation domain, that is, an evaluation domain that is a larger power of 2 than the evaluation domain used in the protocol.</p>
+<h2>Protocol</h2>
 <p>A FRI proof looks like the following:</p>
 <pre><code class="language-rust">struct FriUnsentCommitment {
     // Array of size n_layers - 1 containing unsent table commitments for each inner layer.
@@ -439,11 +408,19 @@ struct VectorCommitmentConfig {
     last_layer_coefficients: Span&lt;felt252&gt;,
 }
 </code></pre>
-<p>We process it in the following way:</p>
+<p>The FRI protocol is split into two phases:</p>
+<ol>
+<li>Commit phase</li>
+<li>Query phase</li>
+</ol>
+<p>We go through each of the phases in the next two subsections.</p>
+<section>
+<h3>Commit Phase</h3>
+<p>The commit phase processes the <code>FriUnsentCommitment</code> object in the following way:</p>
 <ol>
 <li>Enforce that the first layer has a step size of 0 (<code>cfg.fri_step_sizes[0] == 0</code>). (Note that this is mostly to make sure that the prover is following the protocol correctly, as the second layer is never skipped in this standard.)</li>
 <li>Go through each commitment in order in the <code>inner_layers</code> field and perform the following:</li>
-<li>Absorb the commitment using the channel.</li>
+<li>Absorb the commitment using the <a href="#channel">channel</a>.</li>
 <li>Produce a random challenge.</li>
 <li>Absorb the <code>last_layer_coefficients</code> with the channel.</li>
 <li>Check that the last layer's degree is correct (according to the configuration <code>log_last_layer_degree_bound</code>, see the <a href="#configuration">Configuration section</a>): <code>2^cfg.log_last_layer_degree_bound == len(unsent_commitment.last_layer_coefficients)</code>.</li>

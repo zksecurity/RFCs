@@ -229,11 +229,11 @@ We assume that the public input is instantiated and verified by the parent proto
 
 There are three types of domains:
 
-1. The trace domain, this is the domain chosen to evaluate the execution trace polynomials. It is typically the smallest subgroup of order $2^{n_t}$ for some $n_t$, such that it can include all the constraints.
-2. The evaluation domain, which is chosen as a subgroup of a power of two $2^{n_e}$ that encompasses the trace domain (i.e. $e \geq t$). The "blown up factor" typically dictates how much larger the evaluation domain as a multiple.
-(TODO: and then typically moved to a coset). (TODO: why n_cosets then? can this be seen as a union of cosets formed from the trace domain?)
+The **trace domain**, this is the domain chosen to evaluate the execution trace polynomials. It is typically the smallest subgroup of order $2^{n_t}$ for some $n_t$, such that it can include all the constraints. A generator for the trace domain can be found as $\omega_t =3^{(p-1)/n_t}$ (since $\omega_{t}^{n_t} = 1$)
 
-As such, the generator of the trace domain can be found as $\omega_e =3^{(p-1)/n_t}$ (since $\omega_{e}^{n_t} = 1$), and the generator of the evaluation domain can be found as $\omega = 3^{(p-1)/n_e}$.
+The **blown-up trace domain**, which is chosen as a subgroup of a power of two $2^{n_e}$ that encompasses the trace domain (i.e. $e \geq t$). The "blown up factor" typically dictates how much larger the evaluation domain is as a multiple. A generator for the blown-up trace domain can be found as $\omega_e = 3^{(p-1)/n_e}$.
+
+The **evaluation domain**, This is a coset of the blown-up domain, computed using the generator of the main group: $\{ 3 \cdot \omega_e^i | i \in [[0, n_e]] \}$.
 
 <aside class="note">The reason for choosing a coset is two-folds. First, in ZK protocols you want to avoid decommitting actual witness values by querying points in the trace domain. Choosing another domain helps but is not sufficient. As this specification does not provide a ZK protocol. The second reason is the one that is interesting to us: it is an optimization reason. As the prover needs to compute the composition polynomial, they can do this in the monomial basis (using vectors of coefficient of the polynomials) but it is expensive. For this reason, they usually operate on polynomials using the lagrange basis (using vectors of evaluations of the polynomials). As such, calculating the composition polynomial leads to divisions by zero if the trace domain is used. The prover could in theory use any other domains, but they decide to use the same domain that they use to commit (the evaluation domain) to avoid having to interpolate and re-evaluate in the domain to commit (which would involve two FFTs).</aside>
 
