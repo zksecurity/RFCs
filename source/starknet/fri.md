@@ -4,7 +4,7 @@ abstract: "<p>The <strong>Fast Reed-Solomon Interactive Oracle Proofs of Proximi
 
 <p>For more information about the original construction, see <a href=\"https://eccc.weizmann.ac.il/report/2017/134/\">Fast Reed-Solomon Interactive Oracle Proofs of Proximity</a>. This document is about the specific instantiation of FRI and FRI-PCS as used by the StarkNet protocol.</p>
 
-<aside class=\"note\">Specifically, it matches the [integrity verifier](https://github.com/HerodotusDev/integrity/tree/main/src) which is a Cairo implementation of a Cairo verifier. There might be important differences with the Cairo verifier implemented in C++ or Solidity.</aside>"
+<aside class=\"note\">Specifically, it matches the <a href=\"https://github.com/HerodotusDev/integrity\">integrity verifier</a>, which is a <a href=\"https://book.cairo-lang.org/\">Cairo 1</a> implementation of a Cairo verifier. There might be important differences with the Cairo verifier implemented in C++ or Solidity.</aside>"
 sotd: "draft"
 shortName: "starknet-fri"
 editor: "David Wong"
@@ -224,25 +224,6 @@ p2_v = h2 + v^4 * g2 # they can then compute p2(v^4) directly
 assert g1_square + zeta1 * h1_square == p2_v # and then check correctness
 ```
 
-#### Commitments
-
-Commitments used in this specification are Merkle tree commitments of evaluations of a polynomial. In other words, the leaves of the Merkle tree are evaluations of a polynomial at distinct points.
-
-We use a coset to evaluate the polynomial at the different points. This is for two reasons:
-
-1. In FRI we can increase the size of the evaluated domain in the commitments, in order to decrease the number of queries needed to ensure high bit-security. (TODO: how do cosets help us here?)
-2. As used in Starknet STARK (TODO: link to the STARK verifier specification), the layer 0 polynomial has to be computed as a rational polynomial that would lead to division by zero issues if evaluated in the original evaluation domain. As such we take a coset to avoid this issue.
-
-As with what we specify in the rest of this document, we produce a coset of the same size as the evaluation domain (the domain which is used to produce the layer 0 polynomial in the Starknet STARK protocol).
-
-```py
-# if we evaluate the polynomial on a set of size 8 (so the blowup factor is 1)
-g = find_gen2(log(8,2))
-
-coset = [3 * g^i for i in range(8)] 
-poly8_evals = [p0(x) for x in coset] # <-- we would merklelify this as statement
-```
-
 ### FRI-PCS
 
 Given a polynomial $f$ and an evaluation point $a$, a prover who wants to prove that $f(a) = b$ can prove the related statement for some quotient polynomial $q$ of degree $deg(f) - 1$:
@@ -288,24 +269,24 @@ $$
 The first difference in this specification is that, assuming no skipped layers, the folded polynomial is multiplied by 2:
 
 $$
-p_{i+1}(x) = 2(g_{i}(x) + \zeta_{i} \cdot 3^{-1} \cdot h_{i}(x)) 
+p_{i+1}(x) = 2(g_{i}(x) + \zeta_{i} \cdot h_{i}(x)) 
 $$
 
 This means that the verifier has to modify their queries slightly by not dividing by 2:
 
 $$
-p_{i+1}(v^2) = p_{i}(v) + p_{i}(-v) + \zeta_{i} g \cdot \frac{p_{i}(v) - p_{i}(-v)}{v}
+p_{i+1}(v^2) = p_{i}(v) + p_{i}(-v) + \zeta_{i} \cdot \frac{p_{i}(v) - p_{i}(-v)}{v}
 $$
 
 The second difference is that while the evaluations of the first layer $p_0$ happen in a coset, further evaluations happen in the original (blown up) evaluation domain (which is avoided for the first polynomial as it might lead to divisions by zero with the polynomials used in the Starknet STARK protocol). To do this, the prover defines the first reduced polynomial as:
 
 $$
-p_{1}(x) = 2(g_{0}(9x^2) + \zeta_0 \frac{h_{0}(9x^2)}{x})
+p_{1}(x) = 2(g_{0}(9x^2) + \zeta_0 \cdot 3 \cdot h_{0}(9x^2))
 $$
 
-Notice that the prover has also divided by $x$ instead of $3x$. This is a minor change that helps with how the verifier code is structured.
+Notice that the prover has also multiplied the right term with $3$. This is a minor change that helps with how the verifier code is structured.
 
-This means that the verifier computes the queries on $p_1{x}$ at points on the original subgroup. So the queries of the first layer are produced using $v' = v/3$ (assuming no skipped layers).
+This means that the verifier computes the queries on $p_1(x)$ at points on the original subgroup. So the queries of the first layer are produced using $v' = v/3$ (assuming no skipped layers).
 
 $$
 p_1((v'^2) = p_0(v) + p_0(-v) + \zeta_0 \cdot \frac{p_0(v) - p_0(-v)}{v'}
@@ -325,10 +306,8 @@ In this section we list all the dependencies and interfaces this standard relies
 
 We rely on two type of hash functions:
 
-* A circuit-friendly hash. Specifically, **Poseidon**.
+* A verifier-friendly hash. Specifically, **Poseidon**. (TODO: explain why, also should we call it circuit-friendly?)
 * A standard hash function. Specifically, **Keccak**.
-
-TODO: why the alternate use of hash functions?
 
 ### Channel
 
@@ -352,11 +331,13 @@ We use the following constants throughout the protocol.
 
 ### FRI constants
 
-**`MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15`**. TKTK
+**`MAX_LAST_LAYER_LOG_DEGREE_BOUND = 15`**. The maximum degree of the last layer polynomial (in log2).
 
-**`MAX_FRI_LAYERS = 15`**. The maximum number of layers in the FRI protocol. This means that the protocol can test that committed polynomials exist and are of degree at most $2^{15}$. (TODO: double check)
+**`MAX_FRI_LAYERS = 15`**. The maximum number of layers in the FRI protocol.
 
 **`MAX_FRI_STEP = 4`**. The maximum number of layers that can be skipped in FRI (see the overview for more details).
+
+This means that the standard can be implemented to test that committed polynomials exist and are of degree at most $2^{15 + 15} = 2^{30}$.
 
 ### TODO: Step generators
 
@@ -410,30 +391,11 @@ TODO: move these validation steps in the description of the fields above
     * TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)
     * where `log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound`
 
+## Domain
+
+TODO: we expect the first layer to be on coset and then on the original domain
+
 ## Protocol
-
-The FRI protocol is split into two phases:
-
-1. Commit phase
-2. Query phase
-
-### Commit Phase
-
-This should basically just absorb the commitments of every layer sent by the prover (potentially skipping layers)
-
-```rust
-#[derive(Drop, Copy, PartialEq, Serde)]
-struct TableCommitmentConfig {
-    n_columns: felt252, // TODO: gets divided by 2 at every step in FRI?
-    vector: VectorCommitmentConfig,
-}
-struct VectorCommitmentConfig {
-    height: felt252, // TODO: ?
-    n_verifier_friendly_commitment_layers: felt252, // TODO: ?
-}
-```
-
-The layer 0 polynomial is not part of the protocol, we assume that it comes from somewhere and that we can query evaluations of it in a coset $3 \cdot \omega_e$ where $\omega_e$ is the generator of the evaluation domain. In the [Starknet STARK protocol](stark.html) it represents a blown up evaluation domain, that is, an evaluation domain that is a larger power of 2 than the evaluation domain used in the protocol.
 
 A FRI proof looks like the following:
 
@@ -447,15 +409,24 @@ struct FriUnsentCommitment {
 }
 ```
 
-We process it in the following way:
+The FRI protocol is split into two phases:
+
+1. Commit phase
+2. Query phase
+
+We go through each of the phases in the next two subsections.
+
+### Commit Phase
+
+The commit phase processes the `FriUnsentCommitment` object in the following way:
 
 1. Enforce that the first layer has a step size of 0 (`cfg.fri_step_sizes[0] == 0`). (Note that this is mostly to make sure that the prover is following the protocol correctly, as the second layer is never skipped in this standard.)
-1. Go through each commitment in order in the `inner_layers` field and perform the following:
-   1. Absorb the commitment using the channel.
-   1. Produce a random challenge.
-1. Absorb the `last_layer_coefficients` with the channel.
-1. Check that the last layer's degree is correct (according to the configuration `log_last_layer_degree_bound`, see the [Configuration section](#configuration)): `2^cfg.log_last_layer_degree_bound == len(unsent_commitment.last_layer_coefficients)`.
-1. return all the random challenges.
+2. Go through each commitment in order in the `inner_layers` field and perform the following:
+   1. Absorb the commitment using the [channel](#channel).
+   2. Produce a random challenge.
+3. Absorb the `last_layer_coefficients` with the channel.
+4. Check that the last layer's degree is correct (according to the configuration `log_last_layer_degree_bound`, see the [Configuration section](#configuration)): `2^cfg.log_last_layer_degree_bound == len(unsent_commitment.last_layer_coefficients)`.
+5. return all the random challenges.
 
 ### Query Phase
 
@@ -536,8 +507,6 @@ To verify the last layer's query, as the last layer polynomial is received in cl
 TODO: As explained in the section on Merkle Tree Decommitment, witness leaves values have to be given as well.
 
 TODO: link to section on merkle tree
-
-
 
 #### Computing the next layer's queries
 
