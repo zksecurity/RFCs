@@ -335,27 +335,22 @@ We use the following constants throughout the protocol.
 
 **`MAX_FRI_LAYERS = 15`**. The maximum number of layers in the FRI protocol.
 
-**`MAX_FRI_STEP = 4`**. The maximum number of layers that can be skipped in FRI (see the overview for more details).
+**`MAX_FRI_STEP = 4`**. The maximum number of layers that can be involved in a reduction in FRI (see the overview for more details). This essentially means that each reduction (except for the first as we specify later) can skip 0 to 3 layers.
 
 This means that the standard can be implemented to test that committed polynomials exist and are of degree at most $2^{15 + 15} = 2^{30}$.
 
-### TODO: Step generators
+### Step Generators And Inverses
 
-* we are in a coset, so a fixed value `g=3` is chosen
-* we also must understand how to compute the skipped layers, that is what are the elements of the subgroups of order $2^i$ for $i$ in $[1, 2, 3, 4]$ used by the prover and what are their corresponding inverses.
+As explained in the overview, skipped layers must involve the use of elements of the subgroups of order $2^i$ for $i$ the number of layers included in a step (from 1 to 4 as specified previously).
 
-These are used to skip layers during the FRI protocol. Only 1, 2, 3, or 4 layers can be skipped, each associated to one of the constant below (except for skipping a single layer which is trivial):
+As different generators can generate the same subgroups, we have to define the generators that are expected. Instead, we define the inverse of the generators of groups of different orders (as it more closely matches the code):
 
-```rust
-// to skip 4 layers
-const OMEGA_16: felt252 = 0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75;
-// to skip 3 layers
-const OMEGA_8: felt252 = 0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df6f4bc9ca34;
-// to skip 2 layers
-const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e;
-```
+* `const OMEGA_16: felt252 = 0x5c3ed0c6f6ac6dd647c9ba3e4721c1eb14011ea3d174c52d7981c5b8145aa75;`
+* `const OMEGA_8: felt252 = 0x446ed3ce295dda2b5ea677394813e6eab8bfbc55397aacac8e6df6f4bc9ca34;`
+* `const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e;`
+* `const OMEGA_2: felt252 = -1`
 
-TODO: explain more here
+So here, for example, `OMEGA_8` is $1/\omega_8$ where $\omega_8$ is the generator of the subgroup of order $8$ that we later use in the [Verify A Layer's Query](#verify-a-layers-query) section.
 
 ## Configuration
 
@@ -529,13 +524,13 @@ Queries between layers verify that the next layer $p_{i+j}$ is computed correctl
 The next layer is either the direct next layer $p_{i+1}$ or a layer further away if the configuration allows layers to be skipped.
 Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the `MAX_FRI_STEP` constant).
 
-The formula with no skipping is:
+The FRI formula with no skipping is:
 
 * given a layer evaluations at $\pm v$, a query without skipping layers work this way:
 * we can compute the next layer's *expected* evaluation at $v^2$ by computing $p_{i+1}(v^2) = \frac{p_{i}(v)+p_{i}(-v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-v)}{2v}$
 * we can then ask the prover to open the next layer's polynomial at that point and verify that it matches
 
-The formula with 1 layer skipped with $\omega_4$ the generator of the 4-th roots of unity (such that $\omega_4^2 = -1$):
+The FRI formula with 1 layer skipped with $\omega_4$ the generator of the 4-th roots of unity (such that $\omega_4^2 = -1$):
 
 * $p_{i+1}(v^2) = \frac{p_{i}(v)+p_{i}(-v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-v)}{2v}$
 * $p_{i+1}(-v^2) = \frac{p_{i}(\omega_4 v)+p_{i}(-\omega_4 v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-\omega_4 v)}{2 \cdot \omega_4 \cdot v}$
@@ -543,7 +538,7 @@ The formula with 1 layer skipped with $\omega_4$ the generator of the 4-th roots
 
 As you can see, this requires 4 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$.
 
-The formula with 2 layers skipped with $\omega_8$ the generator of the 8-th roots of unity (such that $\omega_8^2 = \omega_4$ and $\omega_8^4 = -1$):
+The FRI formula with 2 layers skipped with $\omega_8$ the generator of the 8-th roots of unity (such that $\omega_8^2 = \omega_4$ and $\omega_8^4 = -1$):
 
 * $p_{i+1}(v^2) = \frac{p_{i}(v)+p_{i}(-v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-v)}{2v}$
 * $p_{i+1}(-v^2) = \frac{p_{i}(\omega_4 v)+p_{i}(-\omega_4 v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-\omega_4 v)}{2 \cdot \omega_4 \cdot v}$
@@ -555,7 +550,7 @@ The formula with 2 layers skipped with $\omega_8$ the generator of the 8-th root
 
 As you can see, this requires 8 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$, $\omega_8 v$, $- \omega_8 v$, $\omega_8^3 v$, $- \omega_8^3 v$.
 
-The formula with 3 layers skipped with $\omega_{16}$ the generator of the 16-th roots of unity (such that $\omega_{16}^2 = \omega_{8}$, $\omega_{16}^4 = \omega_4$, and $\omega_{16}^8 = -1$):
+The FRI formula with 3 layers skipped with $\omega_{16}$ the generator of the 16-th roots of unity (such that $\omega_{16}^2 = \omega_{8}$, $\omega_{16}^4 = \omega_4$, and $\omega_{16}^8 = -1$):
 
 * $p_{i+1}(v^2) = \frac{p_{i}(v)+p_{i}(-v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-v)}{2v}$
 * $p_{i+1}(-v^2) = \frac{p_{i}(\omega_4 v)+p_{i}(-\omega_4 v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-\omega_4 v)}{2 \cdot \omega_4 \cdot v}$
