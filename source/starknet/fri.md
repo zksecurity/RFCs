@@ -366,7 +366,7 @@ The FRI protocol is globally parameterized according to the following variables.
 
 A FRI configuration contains the following fields:
 
-**`log_input_size`**. The size of the input layer to FRI (the number of evaluations committed). (TODO: double check)
+**`log_input_size`**. The size of the input layer to FRI, specifically the log number of evaluations committed (this should match the log of the evaluation domain size).
 
 **`n_layers`**. The number of layers or folding that will occur as part of the FRI proof. This value must be within the range `[2, MAX_FRI_LAYERS]` (see constants).
 
