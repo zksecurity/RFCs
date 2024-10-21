@@ -372,7 +372,7 @@ assert g1_square + zeta1 * h1_square == p2_v # and then check correctness
 <p><strong><code>inner_layers</code></strong>. An array of <code>TableCommitmentConfig</code> where each configuration represents what is expected of each commitment sent as part of the FRI proof. Refer to the <a href="merkle.html#table-commitments">Table Commitments section of the Starknet Merkle Tree Polynomial Commitments specification</a>.</p>
 <p><strong><code>fri_step_sizes</code></strong>. The number of layers to skip for each folding/reduction of the protocol. The first step must always be zero, as no layer is skipped during the first reduction. Each step should be within the range <code>[1, MAX_FRI_STEP]</code>. For each step, the corresponding layer <code>inner_layers[i-1]</code> should have enough columns to support the reduction: <code>n_columns = 2^fri_step</code>.</p>
 <p><strong><code>log_last_layer_degree_bound</code></strong>. The degree of the last layer's polynomial. As it is sent in clear as part of the FRI protocol, this value represents the (log) number of coefficients (minus 1) that the proof will contain. It must be less or equal to <code>MAX_LAST_LAYER_LOG_DEGREE_BOUND</code> (see constants).</p>
-<p>TODO: move these validation steps in the description of the fields above</p>
+<p>In addition, the following validations should be performed on passed configurations:</p>
 <ul>
 <li>for every <code>fri_step_sizes[i]</code> check:<ul>
 <li>that the previous layer table commitment configuration <code>inner_Layers[i-1]</code> has</li>
@@ -388,6 +388,7 @@ assert g1_square + zeta1 * h1_square == p2_v # and then check correctness
 </ul>
 </li>
 </ul>
+<p>TODO: move these validation steps in the description of the fields above</p>
 </section>
 </section>
 <section>

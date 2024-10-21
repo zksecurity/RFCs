@@ -376,7 +376,7 @@ A FRI configuration contains the following fields:
 
 **`log_last_layer_degree_bound`**. The degree of the last layer's polynomial. As it is sent in clear as part of the FRI protocol, this value represents the (log) number of coefficients (minus 1) that the proof will contain. It must be less or equal to `MAX_LAST_LAYER_LOG_DEGREE_BOUND` (see constants).
 
-TODO: move these validation steps in the description of the fields above
+In addition, the following validations should be performed on passed configurations:
 
 * for every `fri_step_sizes[i]` check:
     * that the previous layer table commitment configuration `inner_Layers[i-1]` has
@@ -385,6 +385,8 @@ TODO: move these validation steps in the description of the fields above
 * the `log_expected_input_degree + log_n_cosets == log_input_size`
     * TODO: why is log_n_cosets passed? and what is it? (number of additional cosets with the blowup factor?)
     * where `log_expected_input_degree = sum_of_step_sizes + log_last_layer_degree_bound`
+
+TODO: move these validation steps in the description of the fields above
 
 ## Domains and Commitments
 
