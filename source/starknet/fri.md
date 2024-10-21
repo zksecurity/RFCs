@@ -27,8 +27,8 @@ If the reductions are "correct", and it takes $n$ reductions to produce a consta
 
 In order to ensure that the reductions are correct, two mechanisms are used:
 
-1. First, an interactive protocol is performed with a verifier who helps randomizing the halving of polynomials. In each round the prover commits to a "layer" polynomial.
-2. Second, as commitments are not algebraic objects (as FRI works with hash-based commitments), the verifier query them in multiple points to verify that an output polynomial is consistant with its input polynomial and a random challenge. (Intuitively, the more queries, the more secure the protocol.)
+1. First, an interactive protocol is performed with a verifier who helps randomize the halving of polynomials. In each round the prover commits to a "layer" polynomial.
+2. Second, as commitments are not algebraic objects (as FRI works with hash-based commitments), the verifier query them in multiple points to verify that an output polynomial is consistent with its input polynomial and a random challenge. (Intuitively, the more queries, the more secure the protocol.)
 
 #### Setup
 
@@ -45,7 +45,7 @@ gen = starknet_field.multiplicative_generator()
 assert gen == 3
 assert starknet_field(gen)^(starknet_prime-1) == 1 # 3^(order-1) = 1
 
-# lagrange theorem's gives us the orders of all the multiplicative subgroups
+# lagrange theorem gives us the orders of all the multiplicative subgroups
 # which are the divisors of the main multiplicative group order (which, remember, is p - 1 as 0 is not part of it)
 # p - 1 = 2^192 * 5 * 7 * 98714381 * 166848103
 multiplicative_subgroup_order = starknet_field.order() - 1
@@ -83,7 +83,7 @@ def split_poly(p, remove_square=True):
     g = (p + p(-x))/2 # <---------- nice trick!
     h = (p - p(-x))//(2 * x) # <--- nice trick!
     # at this point g and h are still around the same degree of p
-    # we need to replace x^2 by x for FRI to (as we want to halve the degrees!)
+    # we need to replace x^2 by x for FRI to continue (as we want to halve the degrees!)
     if remove_square:
         g = g.parent(g.list()[::2]) # <-- (using python's `[start:stop:step]` syntax)
         h = h.parent(h.list()[::2])
@@ -131,7 +131,7 @@ assert p3.degree() == 0
 
 ![queries](/img/starknet/queries.png)
 
-In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represent the proper reduction of the previous layer's polynomial. To do that, they "query" commitments of the different polynomials of the different layers at points/evaluations. Let's see how this works.
+In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represents the proper reduction of the previous layer's polynomial. To do that, they "query" commitments of the different polynomials of the different layers at points/evaluations. Let's see how this works.
 
 Given a polynomial $p_0(x) = g_0(x^2) + x h_0(x^2)$ and two of its evaluations at some points $v$ and $-v$, we can see that the verifier can recover the two halves by computing:
 
@@ -257,7 +257,7 @@ Specifically, FRI-PCS proves that they can produce such a (commitment to a) poly
 
 ### Aggregating Multiple FRI Proofs
 
-To prove that two polynomials $a$ and $b$ exist and are of degree at most $d$, a prove simply prove that a random linear combination of $a$ and $b$ exists and is of degree at most $d$.
+To prove that two polynomials $a$ and $b$ exist and are of degree at most $d$, a prover simply shows using FRI that a random linear combination of $a$ and $b$ exists and is of degree at most $d$.
 
 TODO: what if the different polynomials are of different degrees?
 
@@ -319,7 +319,7 @@ Note that these changes can easily be generalized to work when layers are skippe
 
 ## External Dependencies
 
-In this section we list all of the dependencies and interfaces this standard relies on.
+In this section we list all the dependencies and interfaces this standard relies on.
 
 ### Hash Functions
 
@@ -332,13 +332,13 @@ TODO: why the alternate use of hash functions?
 
 ### Channel
 
-See the [Channel](channel.html) specification for more details.
+See the [Channel](channel.html) specification for details.
 
 ### Evaluations of the first FRI layer
 
 As part of the protocol, the prover must provide a number of evaluations of the first layer polynomial $p_0$ (based on the FRI queries that the verifier generates).
 
-We abstract this here as an oracle that magically provides evaluations, it is the responsibility of the user of this protocol to ensure that the evaluations are correct. See the [Starknet STARK verifier specification](stark.html) for a concrete usage example.
+We abstract this here as an oracle that magically provides evaluations. It is the responsibility of the user of this protocol to ensure that the evaluations are correct. See the [Starknet STARK verifier specification](stark.html) for a concrete usage example.
 
 ## Constants
 
@@ -348,7 +348,7 @@ We use the following constants throughout the protocol.
 
 **`STARKNET_PRIME = 3618502788666131213697322783095070105623107215331596699973092056135872020481`**. The Starknet prime ($2^{251} + 17 \cdot 2^{192} + 1$).
 
-**`FIELD_GENERATOR = 3`**. The generator for the main multiplicative subgroup of the Starknet field. This is also used as coset factor to produce the coset used in the first layer's evaluation.
+**`FIELD_GENERATOR = 3`**. The generator for the main multiplicative subgroup of the Starknet field. This is also used as the coset factor to produce the coset used in the first layer's evaluation.
 
 ### FRI constants
 
@@ -380,7 +380,7 @@ TODO: explain more here
 
 ### General configuration
 
-The FRI protocol is globally parameterized according to the following variables which from the protocol making use of FRI. For a real-world example, check the [Starknet STARK verifier specification](stark.md).
+The FRI protocol is globally parameterized according to the following variables. For a real-world example, check the [Starknet STARK verifier specification](stark.md).
 
 **`n_verifier_friendly_commitment_layers`**. The number of layers (starting from the bottom) that make use of the circuit-friendly hash.
 
@@ -394,7 +394,7 @@ A FRI configuration contains the following fields:
 
 **`n_layers`**. The number of layers or folding that will occur as part of the FRI proof. This value must be within the range `[2, MAX_FRI_LAYERS]` (see constants).
 
-**`inner_layers`**. An array of `TableCommitmentConfig` where each configuration represent what is expected of each commitment sent as part of the FRI proof. Refer to the [Table Commitments section of the Starknet Merkle Tree Polynomial Commitments specification](merkle.html#table-commitments).
+**`inner_layers`**. An array of `TableCommitmentConfig` where each configuration represents what is expected of each commitment sent as part of the FRI proof. Refer to the [Table Commitments section of the Starknet Merkle Tree Polynomial Commitments specification](merkle.html#table-commitments).
 
 **`fri_step_sizes`**. The number of layers to skip for each folding/reduction of the protocol. The first step must always be zero, as no layer is skipped during the first reduction. Each step should be within the range `[1, MAX_FRI_STEP]`. For each step, the corresponding layer `inner_layers[i-1]` should have enough columns to support the reduction: `n_columns = 2^fri_step`.
 
@@ -481,11 +481,11 @@ $$
 p_{i+1}(1/\text{x_inv_value}) = \text{y_value}
 $$
 
-Or in terms of commitment, that the decommitment at path the path behind `index` is `y_value`.
+Or in terms of commitment, that the decommitment at path `index` is `y_value`.
 
 <aside class="note">This is not exactly correct. The Commitment section explains that `index` points to a point, whereas we need to point to the path in the Merkle tree commitment that gathers its associated points. In addition, `y_value` only gives one evaluation, so the prover will need to witness associated evaluations surrounding the `y_value` as well (see Table Commitment section).</aside>
 
-See the [Converting A Query to a Path section of the Merkle tree specification](merkle.html#converting-a-query-to-a-path) for more details.
+See the [Converting A Query to a Path section of the Merkle tree specification](merkle.html#converting-a-query-to-a-path) for details.
 
 #### Generating The First Queries
 
@@ -525,7 +525,7 @@ TODO: explain why not just do $3 \cdot \omega_e{q}$
 
 TODO: refer to the section on the first layer evaluation stuff (external dependency)
 
-Besides the last layer, each layer verification of a query happens by simply decommiting a layer's queries.
+Besides the last layer, each layer verification of a query happens by simply decommitting a layer's queries.
 
 ```rust
 table_decommit(commitment, paths, leaves_values, witness, settings);
@@ -555,7 +555,7 @@ TODO: explain the relation between coset_size and the step size. coset_size = 2^
 
 The next evaluations expected at the queried layers are derived as:
 
-Queries between layers verify that the next layer $p_{i+j}$ is computed correctly based on the currently layer $p_{i}$.
+Queries between layers verify that the next layer $p_{i+j}$ is computed correctly based on the current layer $p_{i}$.
 The next layer is either the direct next layer $p_{i+1}$ or a layer further away if the configuration allows layers to be skipped.
 Specifically, each reduction is allowed to skip 0, 1, 2, or 3 layers (see the `MAX_FRI_STEP` constant).
 
@@ -573,7 +573,7 @@ no skipping:
 * $p_{i+1}(-v^2) = \frac{p_{i}(\omega_4 v)+p_{i}(-\omega_4 v)}{2} + \zeta_i \cdot \frac{p_i(v) - p_i(-\omega_4 v)}{2 \cdot \omega_4 \cdot v}$
 * $p_{i+2}(v^4) = \frac{p_{i+1}(v^2)+p_{i+1}(-v^2)}{2} + \zeta_i^2 \cdot \frac{p_i(v^2) - p_i(-v^2)}{2 \cdot v^2}$
 
-as you can see, this requires 4 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$.
+As you can see, this requires 4 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$.
 
 2 skippings with $\omega_8$ the generator of the 8-th roots of unity (such that $\omega_8^2 = \omega_4$ and $\omega_8^4 = -1$):
 
@@ -585,7 +585,7 @@ as you can see, this requires 4 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$,
 * $p_{i+2}(-v^4) = \frac{p_{i+1}(\omega_4 v^2)+p_{i+1}(-\omega_4v^2)}{2} + \zeta_i^2 \cdot \frac{p_{i+1}(\omega_4 v^2) - p_{i+1}(-\omega_4 v^2)}{2 \cdot \omega_4 v^2}$
 * $p_{i+3}(v^8) = \frac{p_{i+2}(v^4)+p_{i+2}(-v^4)}{2} + \zeta_i^4 \cdot \frac{p_{i+2}(v^4) - p_{i+2}(-v^4)}{2 \cdot v^4}$
 
-as you can see, this requires 8 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$, $\omega_8 v$, $- \omega_8 v$, $\omega_8^3 v$, $- \omega_8^3 v$.
+As you can see, this requires 8 evaluations of p_{i} at $v$, $-v$, $\omega_4 v$, $-\omega_4 v$, $\omega_8 v$, $- \omega_8 v$, $\omega_8^3 v$, $- \omega_8^3 v$.
 
 3 skippings with $\omega_{16}$ the generator of the 16-th roots of unity (such that $\omega_{16}^2 = \omega_{8}$, $\omega_{16}^4 = \omega_4$, and $\omega_{16}^8 = -1$):
 

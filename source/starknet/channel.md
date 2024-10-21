@@ -15,14 +15,14 @@ A channel is an object that mimics the communication channel between the prover 
 
 The Fiat-Shamir transformation works on public-coin protocols, in which the messages of the verifier are pure random values. To work, the Fiat-Shamir transformation replaces the verifier messages with a hash function applied over the transcript up to that point.
 
-A channel is initialized at the beginning of the protocol, and is instantiated with a hash function. It is implemented as a continuous hash that "absorbs" every prover messages and which output can be used to produce the verifier's challenges.
+A channel is initialized at the beginning of the protocol, and is instantiated with a hash function. It is implemented as a continuous hash that "absorbs" every prover message and which output can be used to produce the verifier's challenges.
 
 ## Dependencies
 
 A channel is instantiated with the following two dependencies:
 
-* `hades_permutation(s1, s2, s3)`. The hades permutation which permutates a given state of three field elements.
-* `poseidon_hash_span(field_elements)`. The poseidon sponge function which hashes a list of field elements.
+* `hades_permutation(s1, s2, s3)`. The Hades permutation which permutes a given state of three field elements.
+* `poseidon_hash_span(field_elements)`. The Poseidon sponge function which hashes a list of field elements.
 
 ## Interface
 
@@ -33,7 +33,7 @@ A channel has two fields:
 
 The channel has the following interface:
 
-**Initialize**. This intializes the channel in the following way: 
+**Initialize**. This initializes the channel in the following way: 
 
 * Set the `digest` to the given `digest`, which is the prologue/context to the protocol. 
 * Set the `counter` to $0$.
