@@ -86,7 +86,7 @@ As such, the role of the verifier is to verify that all the quotient polynomials
 
 TODO: define low-degree better
 
-As we want to avoid having to go through many FRI checks, the verifier sends a challenge $\alpha$ which the prover can use to aggregate all of the constraint quotient polynomials into a **composition polynomial** $h(x) := \sum_{i=0} \frac{C_i(x)}{D_i(x) \cdot \alpha^i$.
+As we want to avoid having to go through many FRI checks, the verifier sends a challenge $\alpha$ which the prover can use to aggregate all of the constraint quotient polynomials into a **composition polynomial** $h(x) := \sum_{i=0} \frac{C_i(x)}{D_i(x)} \cdot \alpha^i$.
 
 This composition polynomial is quite big, so the prover provides a commitment to chunks or columns of the composition polynomials, interpreting $h$ as $h(x) = \sum_i h_i(x) x^i$.
 
@@ -247,7 +247,7 @@ The goal of the STARK commit is to process all of the commitments produced by th
       2. Absorb the composition columns (the $h_i$ in $h(x) = \sum_i h_i x^i$) with the channel.
       3. Sample the oods point (`interaction_after_composition`).
       4. Absorb all evaluations with the channel.
-      5. Verify that the composition polynomial is correct by checking that its evaluation at the oods point is correct using some of the evaluations $\sum_j \frac{C_j(\text{oods_point})}{D_j(\text{odds_point})} = \sum_i h_i(\text{oods_point}) \times \text{oods_point}^i$.
+      5. Verify that the composition polynomial is correct by checking that its evaluation at the oods point is correct using some of the evaluations $\sum_j \frac{C_j(\text{oods_point})}{D_j(\text{odds\_point})} = \sum_i h_i(\text{oods_point}) \times \text{oods_point}^i$.
          1. The right-hand side can be computed directly using the evaluations sent by the prover
          2. The left-hand side has to be computed using the `eval_composition_polynomial` function defined in the [AIR Arithmetization Dependency section](#air-arithmetization-dependency).
 3. **Produce a challenge to aggregate all FRI checks and run the FRI protocol**:
