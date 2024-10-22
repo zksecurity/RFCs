@@ -129,7 +129,7 @@ assert p3.degree() == 0
 
 #### Queries
 
-![queries](/img/starknet/queries.png)
+<img src="/img/starknet/queries.png" style="max-width:100%">
 
 In the real FRI protocol, each layer's polynomial would be sent using a hash-based commitment (e.g. a Merkle tree of its evaluations over a large domain). As such, the verifier must ensure that each commitment consistently represents the proper reduction of the previous layer's polynomial. To do that, they "query" commitments of the different polynomials of the different layers at points/evaluations. Let's see how this works.
 
@@ -181,7 +181,7 @@ assert p3 == g2_square + zeta2 * h2_square # we already received p3 at the end o
 
 #### Skipping FRI layers
 
-![skipped layers](/img/starknet/skipped_layers.png)
+<img src="/img/starknet/skipped_layers.png" style="max-width:100%">
 
 Section 3.11.1 "Skipping FRI Layers" of the ethSTARK paper describes an optimization which skips some of the layers/rounds. The intuition is the following: if we removed the first round commitment (to the polynomial $p_1$), then the verifier would not be able to:
 
@@ -350,7 +350,7 @@ As different generators can generate the same subgroups, we have to define the g
 * `const OMEGA_4: felt252 = 0x1dafdc6d65d66b5accedf99bcd607383ad971a9537cdf25d59e99d90becc81e;`
 * `const OMEGA_2: felt252 = -1`
 
-So here, for example, `OMEGA_8` is $1/\omega_8$ where $\omega_8$ is the generator of the subgroup of order $8$ that we later use in the [Verify A Layer's Query](#verify-a-layers-query) section.
+So here, for example, `OMEGA_8` is $1/\omega_8$ where $\omega_8$ is the generator of the subgroup of order $8$ that we later use in the [Verify A Layer's Query](#verify-a-layer-s-query) section.
 
 ## Configuration
 
@@ -466,8 +466,6 @@ $$
 Or in terms of commitment, that the decommitment at path `index` is `y_value`.
 
 <aside class="note">This is not exactly correct. The Commitment section explains that `index` points to a point, whereas we need to point to the path in the Merkle tree commitment that gathers its associated points. In addition, `y_value` only gives one evaluation, so the prover will need to witness associated evaluations surrounding the `y_value` as well (see Table Commitment section).</aside>
-
-See the [Converting A Query to a Path section of the Merkle tree specification](merkle.html#converting-a-query-to-a-path) for details.
 
 #### Generating The First Queries
 
@@ -627,10 +625,9 @@ We give more detail to each function below.
 1. Take a channel with a prologue (See the [Channel](#channel) section). A prologue contains any context relevant to this proof.
 2. Produce the FRI commits according to the [Commit Phase](#commit-phase) section.
 3. Produce the proof of work according to the [Proof of Work](#proof-of-work) section.
-4. Generate `n_queries` queries in the `eval_domain_size` according to the [Generating Queries](#generating-the-first-queries) section.
-5. Convert the queries to evaluation points following the [Converting A Query To An Evaluation Point](#converting-a-query-to-an-evaluation-point) section, producing `points`.
-6. Evaluate the first layer at the queried `points` using the external dependency (see [External Dependencies](#external-dependencies) section), producing `values`.
-7. Produce the fri_decommitment as `FriDecommitment { values, points }`.
+4. Generate `n_queries` queries and the associated queried points `points` in the `eval_domain_size` according to the [Generating Queries](#generating-the-first-queries) section.
+5. Evaluate the first layer at the queried `points` using the external dependency (see [External Dependencies](#external-dependencies) section), producing `values`.
+6. Produce the fri_decommitment as `FriDecommitment { values, points }`.
 
 **`fri_verify_initial(queries, fri_commitment, decommitment)`**. Takes the FRI queries, the FRI commitments (each layer's committed polynomial), as well as the evaluation points and their associated evaluations of the first layer (in `decommitment`).
 
