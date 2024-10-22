@@ -701,3 +701,5 @@ n_queries * log_n_cosets + proof_of_work_bits
 Where:
 
 * `n_queries` is the number of queries generates 
+* `log_n_cosets` is the log2 of the blow-up factor
+* `proof_of_work_bits` is the number of bits required for the proof of work (see the [Proof of Work section](#proof-of-work)).
