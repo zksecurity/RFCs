@@ -99,8 +99,8 @@
 <li><code>height</code>: the height of the Merkle tree</li>
 <li><code>n_verifier_friendly_commitment_layers</code>: the depth at which layers will start using the verifier-friendly hash.</li>
 </ul>
-<p><img alt="tree indexing" src="/RFCs/img/starknet/tree_indexing.png" /></p>
-<p><img alt="vector commit" src="/RFCs/img/starknet/vector_commit.png" /></p>
+<p><img src="/RFCs/img/starknet/tree_indexing.png" style="max-width:100%">
+<img src="/RFCs/img/starknet/vector_commit.png" style="max-width:100%"></p>
 </section>
 <section>
 <h2>Table Commitments</h2>
@@ -127,16 +127,16 @@
 <section>
 <h2>Vector Membership Proofs</h2>
 <p>A vector decommitment/membership proof must provide a witness (the neighbor nodes missing to compute the root of the Merkle tree) ordered in a specific way. The following algorithm dictates in which order the nodes hash values provided in the proof are consumed:</p>
-<p><img alt="vector decommit" src="/RFCs/img/starknet/vector_decommit.png" /></p>
+<p><img src="/RFCs/img/starknet/vector_decommit.png" style="max-width:100%"></p>
 </section>
 <section>
 <h2>Verifier-Friendly Layers</h2>
 <p>A <code>n_verifier_friendly_layers</code> variable can be passed which dictates at which layer the Merkle tree starts using a verifier-friendly hash.</p>
 <p>In the following example, the height of the table commitment is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>6</mn></mrow></math> (and the height of the vector commitment is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>5</mn></mrow></math>). As such, a <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>6</mn></mrow></math> would mean that only the table would use the verifier-friendly hash. A <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>5</mn></mrow></math> would mean that the last / bottom layer of the Merkle tree would also use the verifier-friendly hash. A <code>n_verifier_friendly_layers</code> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>1</mn></mrow></math> would mean that all layers would use the verifier-friendly hash.</p>
-<p><img alt="vector decommit" src="/RFCs/img/starknet/tree_height.png" /></p>
+<p><img src="/RFCs/img/starknet/tree_height.png" style="max-width:100%"></p>
 <section>
 <h3>Note on commitment multiple evaluations under the same leaf</h3>
-<p>TKTK</p>
+<p>As can be seen in the previous diagram, a leaf can contain (using the technique in <a href="#table-commitments">table commitments</a>) multiple evaluations of the same polynomial at different points. This is useful for the FRI layer commitments where the same polynomial is evaluated at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math> (and potentially more values depending on skipped layers).</p>
 </section>
 </section>
 </body>
