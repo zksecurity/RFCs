@@ -29,9 +29,9 @@ A vector commitment is simply a Merkle tree. It is configured with two fields:
 * `height`: the height of the Merkle tree
 * `n_verifier_friendly_commitment_layers`: the depth at which layers will start using the verifier-friendly hash.
 
-![tree indexing](/img/starknet/tree_indexing.png)
+<img src="/img/starknet/tree_indexing.png" style="max-width:100%">
+<img src="/img/starknet/vector_commit.png" style="max-width:100%">
 
-![vector commit](/img/starknet/vector_commit.png)
 
 ## Table Commitments
 
@@ -62,7 +62,7 @@ For example, the index `0` becomes the path `10000` which correctly points to th
 
 A vector decommitment/membership proof must provide a witness (the neighbor nodes missing to compute the root of the Merkle tree) ordered in a specific way. The following algorithm dictates in which order the nodes hash values provided in the proof are consumed:
 
-![vector decommit](/img/starknet/vector_decommit.png)
+<img src="/img/starknet/vector_decommit.png" style="max-width:100%">
 
 ## Verifier-Friendly Layers
 
@@ -70,8 +70,8 @@ A `n_verifier_friendly_layers` variable can be passed which dictates at which la
 
 In the following example, the height of the table commitment is $6$ (and the height of the vector commitment is $5$). As such, a `n_verifier_friendly_layers` of $6$ would mean that only the table would use the verifier-friendly hash. A `n_verifier_friendly_layers` of $5$ would mean that the last / bottom layer of the Merkle tree would also use the verifier-friendly hash. A `n_verifier_friendly_layers` of $1$ would mean that all layers would use the verifier-friendly hash.
 
-![vector decommit](/img/starknet/tree_height.png)
+<img src="/img/starknet/tree_height.png" style="max-width:100%">
 
 ### Note on commitment multiple evaluations under the same leaf
 
-TKTK
+As can be seen in the previous diagram, a leaf can contain (using the technique in [table commitments](#table-commitments)) multiple evaluations of the same polynomial at different points. This is useful for the FRI layer commitments where the same polynomial is evaluated at $v$ and $-v$ (and potentially more values depending on skipped layers).
