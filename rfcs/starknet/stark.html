@@ -235,7 +235,6 @@ With our previous example constraint, the prover would have to provide the evalu
 <li>if every coset is of size <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>t</mi></msub></mrow></msup></mrow></math> with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>n</mi><mi>t</mi></msub></mrow></math> the <code>log_trace_domain_size</code>, and there is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>c</mi></msub></mrow></msup></mrow></math> cosets, then the evaluation domain size is expected to be <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mn>2</mn><mrow><msub><mi>n</mi><mi>t</mi></msub><mo>&#x0002B;</mo><msub><mi>n</mi><mi>c</mi></msub></mrow></msup></mrow></math> (TODO: explain why we talk about cosets here)</li>
 <li>traces.validate() (TODO)</li>
 <li>composition.vector.validate() (TODO)</li>
-<li>the rest (proof of work, FRI configuration) is validated as part of the FRI configuration validation</li>
 </ul>
 </section>
 <section>
@@ -270,6 +269,10 @@ struct StarkUnsentCommitment {
 </ul>
 </section>
 <section>
+<h3>Grinding / Proof of Work</h3>
+<p>TODO: write this section</p>
+</section>
+<section>
 <h3>STARK commit</h3>
 <p>The goal of the STARK commit is to process all of the commitments produced by the prover during the protocol (including the FRI commitments), as well as produce the verifier challenges.</p>
 <ol>
@@ -296,6 +299,7 @@ struct StarkUnsentCommitment {
 <li>Call <code>fri_commit</code>.</li>
 </ol>
 </li>
+<li><strong>Verify the proof work</strong> according to the <a href="#grinding--proof-of-work">Grinding / Proof of Work</a> section.</li>
 </ol>
 </section>
 <section>

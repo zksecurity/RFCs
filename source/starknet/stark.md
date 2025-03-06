@@ -197,7 +197,6 @@ To validate:
   * if every coset is of size $2^{n_t}$ with $n_t$ the `log_trace_domain_size`, and there is $2^{n_c}$ cosets, then the evaluation domain size is expected to be $2^{n_t + n_c}$ (TODO: explain why we talk about cosets here)
 * traces.validate() (TODO)
 * composition.vector.validate() (TODO)
-* the rest (proof of work, FRI configuration) is validated as part of the FRI configuration validation
 
 ## Buiding Blocks
 
@@ -234,6 +233,10 @@ Commitments to all the polynomials, before the FRI protocol, are done using tabl
 * For trace polynomials in the interactive arithmetization phase, the tables committed into the leaves represent the evaluations of each of the trace columns at the same point.
 * For composition column polynomials in the composition polynomial phase, the tables committed into the leaves represent the evaluations of each of the composition columns at the same point.
 
+### Grinding / Proof of Work
+
+TODO: write this section
+
 ### STARK commit
 
 The goal of the STARK commit is to process all of the commitments produced by the prover during the protocol (including the FRI commitments), as well as produce the verifier challenges.
@@ -253,6 +256,7 @@ The goal of the STARK commit is to process all of the commitments produced by th
 3. **Produce a challenge to aggregate all FRI checks and run the FRI protocol**:
       1. Sample the oods_alpha challenge with the channel.
       2. Call `fri_commit`.
+4. **Verify the proof work** according to the [Grinding / Proof of Work](#grinding--proof-of-work) section.
 
 ### STARK verify
 
